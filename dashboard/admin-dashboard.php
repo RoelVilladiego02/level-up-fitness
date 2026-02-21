@@ -11,6 +11,8 @@ require_once dirname(dirname(__FILE__)) . '/includes/header.php';
 requireLogin();
 requireRole('admin');
 
+// asdasdasd
+
 $userInfo = getUserInfo();
 
 // Get dashboard statistics

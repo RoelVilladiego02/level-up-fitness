@@ -14,7 +14,7 @@ if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'member' &&
 
 // Check if user is member and active
 if ($_SESSION['user_type'] === 'member') {
-    $memberCheck = $pdo->prepare("SELECT status FROM members WHERE member_id = ?");
+    $memberCheck = $pdo->prepare("SELECT status FROM members WHERE user_id = ?");
     $memberCheck->execute([$_SESSION['user_id']]);
     $memberData = $memberCheck->fetch();
     if (!$memberData || $memberData['status'] !== 'Active') {

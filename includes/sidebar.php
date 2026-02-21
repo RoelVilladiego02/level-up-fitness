@@ -174,6 +174,8 @@ $userRole = $_SESSION['user_type'] ?? 'member';
     text-transform: uppercase;
     letter-spacing: 0.05rem;
     padding-top: 0.5rem;
+    color: var(--primary-color) !important;
+    font-weight: 700;
 }
 
 /* Responsive: Hide sidebar on small screens */
