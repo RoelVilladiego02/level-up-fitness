@@ -144,9 +144,10 @@ $userRole = $_SESSION['user_type'] ?? 'member';
 }
 
 .sidebar .nav-link {
-    color: #495057;
+    color: #212529;
     padding: 0.75rem 1.5rem;
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 0.95rem;
     border-left: 3px solid transparent;
     transition: all 0.3s ease;
 }
