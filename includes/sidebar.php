@@ -8,196 +8,156 @@
 $userRole = $_SESSION['user_type'] ?? 'member';
 ?>
 
-<nav class="col-md-3 col-lg-2 d-md-block sidebar">
-    <div class="position-sticky pt-3">
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-            <span>MAIN MENU</span>
-        </h6>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>dashboard/">
-                    <i class="fas fa-home"></i> Dashboard
-                </a>
-            </li>
-        </ul>
+<nav class="luf-sidebar col-md-3 col-lg-2 d-md-block">
+    <div class="luf-sidebar__inner">
+
+        <div class="luf-sidebar__brand">
+            <span class="luf-sidebar__brand-icon"><i class="fas fa-bolt"></i></span>
+            <span class="luf-sidebar__brand-name">LEVEL UP</span>
+        </div>
+
+        <div class="luf-sidebar__section">
+            <span class="luf-sidebar__label">Main</span>
+            <ul class="luf-sidebar__list">
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>dashboard/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-home"></i></span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
 
         <?php if ($userRole === 'admin'): ?>
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-            <span>MANAGEMENT</span>
-        </h6>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/members/">
-                    <i class="fas fa-users"></i> Members
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/trainers/">
-                    <i class="fas fa-user-tie"></i> Trainers
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/gyms/">
-                    <i class="fas fa-building"></i> Gym Information
-                </a>
-            </li>
-        </ul>
+        <div class="luf-sidebar__section">
+            <span class="luf-sidebar__label">Management</span>
+            <ul class="luf-sidebar__list">
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/members/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-users"></i></span>
+                        <span>Members</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/trainers/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-user-tie"></i></span>
+                        <span>Trainers</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/gyms/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-building"></i></span>
+                        <span>Gym Information</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
         <?php endif; ?>
 
         <?php if ($userRole === 'admin' || $userRole === 'member'): ?>
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-            <span>MEMBER OPERATIONS</span>
-        </h6>
-        <ul class="nav flex-column">
-            <?php if ($userRole === 'member'): ?>
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/trainers/my-trainer.php">
-                    <i class="fas fa-user-tie"></i> My Trainer
-                </a>
-            </li>
-            <?php endif; ?>
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/workouts/">
-                    <i class="fas fa-dumbbell"></i> Workout Plans
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/reservations/">
-                    <i class="fas fa-bookmark"></i> Reservations
-                </a>
-            </li>
-        </ul>
+        <div class="luf-sidebar__section">
+            <span class="luf-sidebar__label">Member</span>
+            <ul class="luf-sidebar__list">
+                <?php if ($userRole === 'member'): ?>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/trainers/my-trainer.php">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-user-tie"></i></span>
+                        <span>My Trainer</span>
+                    </a>
+                </li>
+                <?php endif; ?>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/templates/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-heart"></i></span>
+                        <span>Workout Templates</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/workouts/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-dumbbell"></i></span>
+                        <span>Workout Plans</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/reservations/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-bookmark"></i></span>
+                        <span>Reservations</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
         <?php endif; ?>
 
         <?php if ($userRole === 'admin' || $userRole === 'trainer'): ?>
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-            <span>TRAINER OPERATIONS</span>
-        </h6>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/workouts/">
-                    <i class="fas fa-dumbbell"></i> Workout Plans
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/sessions/">
-                    <i class="fas fa-calendar-alt"></i> Sessions
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/attendance/">
-                    <i class="fas fa-clipboard-check"></i> Attendance
-                </a>
-            </li>
-        </ul>
+        <div class="luf-sidebar__section">
+            <span class="luf-sidebar__label">Trainer</span>
+            <ul class="luf-sidebar__list">
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/templates/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-heart"></i></span>
+                        <span>Workout Templates</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/workouts/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-dumbbell"></i></span>
+                        <span>Workout Plans</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/sessions/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-calendar-alt"></i></span>
+                        <span>Sessions</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/attendance/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-clipboard-check"></i></span>
+                        <span>Attendance</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
         <?php endif; ?>
 
         <?php if ($userRole === 'admin'): ?>
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-            <span>FINANCE</span>
-        </h6>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/payments/">
-                    <i class="fas fa-money-bill-wave"></i> Payments
-                </a>
-            </li>
-        </ul>
+        <div class="luf-sidebar__section">
+            <span class="luf-sidebar__label">Finance</span>
+            <ul class="luf-sidebar__list">
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/payments/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-money-bill-wave"></i></span>
+                        <span>Payments</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
 
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-            <span>REPORTS</span>
-        </h6>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/reports/members.php">
-                    <i class="fas fa-chart-bar"></i> Members Report
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>modules/reports/revenue.php">
-                    <i class="fas fa-chart-line"></i> Revenue Report
-                </a>
-            </li>
-        </ul>
+        <div class="luf-sidebar__section">
+            <span class="luf-sidebar__label">Reports</span>
+            <ul class="luf-sidebar__list">
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/reports/members.php">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-chart-bar"></i></span>
+                        <span>Members Report</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/reports/revenue.php">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-chart-line"></i></span>
+                        <span>Revenue Report</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
         <?php endif; ?>
 
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-            <span>SETTINGS</span>
-        </h6>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="<?php echo APP_URL; ?>auth/logout.php">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
-            </li>
-        </ul>
+        <div class="luf-sidebar__footer">
+            <a class="luf-sidebar__logout" href="<?php echo APP_URL; ?>auth/logout.php">
+                <span class="luf-sidebar__link-icon"><i class="fas fa-sign-out-alt"></i></span>
+                <span>Logout</span>
+            </a>
+        </div>
+
     </div>
 </nav>
-
-<style>
-.sidebar {
-    position: relative;
-    background-color: #2c3e50;
-    min-height: calc(100vh - 60px);
-    overflow-y: auto;
-    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
-}
-
-.sidebar .nav-link {
-    color: #ecf0f1;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-    border-left: 4px solid transparent;
-    transition: all 0.3s ease;
-    margin: 0.25rem 0;
-}
-
-.sidebar .nav-link:hover {
-    color: #fff;
-    background-color: rgba(74, 144, 226, 0.2);
-    border-left-color: #4a90e2;
-    transform: translateX(5px);
-}
-
-.sidebar .nav-link.active {
-    color: #fff;
-    background-color: rgba(74, 144, 226, 0.3);
-    border-left-color: #4a90e2;
-    box-shadow: inset -3px 0 0 #4a90e2;
-}
-
-.sidebar .nav-link i {
-    margin-right: 0.75rem;
-    width: 1.25rem;
-    text-align: center;
-}
-
-.sidebar-heading {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05rem;
-    padding-top: 0.5rem;
-    color: #4a90e2 !important;
-    font-weight: 700;
-}
-
-/* Responsive: Hide sidebar on small screens */
-@media (max-width: 768px) {
-    .sidebar {
-        display: none;
-    }
-    
-    .sidebar.show {
-        display: block;
-        position: fixed;
-        left: 0;
-        top: 0;
-        z-index: 999;
-        width: 250px;
-        height: 100vh;
-        background-color: white;
-        box-shadow: 0 0 10px rgba(0,0,0,0.2);
-    }
-}
-</style>
