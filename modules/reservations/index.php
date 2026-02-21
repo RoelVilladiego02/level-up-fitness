@@ -22,6 +22,25 @@ $itemsPerPage = ITEMS_PER_PAGE;
 $offset = ($page - 1) * $itemsPerPage;
 $totalRecords = 0;
 $totalPages = 1;
+$isAdmin = $_SESSION['user_type'] === 'admin';
+$currentMemberId = null;
+
+// Get current user's member ID if they are a member
+if (!$isAdmin) {
+    try {
+        $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ? AND status = 'Active'");
+        $memberStmt->execute([$_SESSION['user_id']]);
+        $memberData = $memberStmt->fetch();
+        $currentMemberId = $memberData['member_id'] ?? null;
+        
+        // If user is a member but doesn't have a member record, deny access
+        if (!$currentMemberId) {
+            die('Access denied: No active member record found for your account.');
+        }
+    } catch (Exception $e) {
+        setMessage('Error loading member data: ' . $e->getMessage(), 'error');
+    }
+}
 
 try {
     // Build query
@@ -31,6 +50,12 @@ try {
               LEFT JOIN equipment e ON r.equipment_id = e.equipment_id
               WHERE 1=1";
     $params = [];
+    
+    // Members can only see their own reservations
+    if (!$isAdmin) {
+        $query .= " AND r.member_id = ?";
+        $params[] = $currentMemberId;
+    }
 
     // Search filter
     if (!empty($searchTerm)) {
@@ -53,18 +78,30 @@ try {
 
     // Get total count
     $countQuery = "SELECT COUNT(*) as total FROM reservations r WHERE 1=1";
+    $countParams = [];
+    
+    // Members can only see their own reservations
+    if (!$isAdmin) {
+        $countQuery .= " AND r.member_id = ?";
+        $countParams[] = $currentMemberId;
+    }
+    
     if (!empty($searchTerm)) {
-        $countQuery .= " AND (r.reservation_id LIKE ? OR (SELECT member_name FROM members WHERE member_id = r.member_id) LIKE ? OR (SELECT equipment_name FROM equipment WHERE equipment_id = r.equipment_id) LIKE ?)";
+        $countQuery .= " AND (r.reservation_id LIKE ? OR r.member_id IN (SELECT member_id FROM members WHERE member_name LIKE ?) OR r.equipment_id IN (SELECT equipment_id FROM equipment WHERE equipment_name LIKE ?))";
+        $search = "%$searchTerm%";
+        $countParams = array_merge($countParams, [$search, $search, $search]);
     }
     if (!empty($filterStatus)) {
         $countQuery .= " AND r.status = ?";
+        $countParams[] = $filterStatus;
     }
     if (!empty($filterEquipment)) {
         $countQuery .= " AND r.equipment_id = ?";
+        $countParams[] = $filterEquipment;
     }
     
     $countStmt = $pdo->prepare($countQuery);
-    $countStmt->execute($params);
+    $countStmt->execute($countParams);
     $totalRecords = $countStmt->fetch()['total'];
     $totalPages = ceil($totalRecords / $itemsPerPage);
 

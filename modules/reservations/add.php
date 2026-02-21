@@ -16,11 +16,36 @@ $errors = [];
 $formData = [];
 $members = [];
 $equipment = [];
+$isAdmin = $_SESSION['user_type'] === 'admin';
+$currentMemberId = null;
+
+// Get current user's member ID if they are a member
+if (!$isAdmin) {
+    try {
+        $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ? AND status = 'Active'");
+        $memberStmt->execute([$_SESSION['user_id']]);
+        $memberData = $memberStmt->fetch();
+        $currentMemberId = $memberData['member_id'] ?? null;
+        
+        // If user is a member but doesn't have a member record, deny access
+        if (!$currentMemberId) {
+            die('Access denied: No active member record found for your account.');
+        }
+    } catch (Exception $e) {
+        setMessage('Error loading member data: ' . $e->getMessage(), 'error');
+    }
+}
 
 // Load members and equipment for dropdowns
 try {
-    $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE status = 'Active' ORDER BY member_name");
-    $memberStmt->execute();
+    // If member, only load their own member info; if admin, load all active members
+    if ($isAdmin) {
+        $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE status = 'Active' ORDER BY member_name");
+        $memberStmt->execute();
+    } else {
+        $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE member_id = ? AND status = 'Active'");
+        $memberStmt->execute([$currentMemberId]);
+    }
     $members = $memberStmt->fetchAll();
 
     $equipmentStmt = $pdo->prepare("SELECT equipment_id, equipment_name FROM equipment WHERE availability = 'Available' ORDER BY equipment_name");
@@ -31,7 +56,13 @@ try {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $formData['member_id'] = sanitize($_POST['member_id'] ?? '');
+    // For members, automatically use their own member_id; for admins, use the form value
+    if ($isAdmin) {
+        $formData['member_id'] = sanitize($_POST['member_id'] ?? '');
+    } else {
+        $formData['member_id'] = $currentMemberId; // Auto-populate for members
+    }
+    
     $formData['equipment_id'] = sanitize($_POST['equipment_id'] ?? '');
     $formData['reservation_date'] = sanitize($_POST['reservation_date'] ?? '');
     $formData['start_time'] = sanitize($_POST['start_time'] ?? '');
@@ -41,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Validate Member
     if (empty($formData['member_id'])) {
-        $errors['member_id'] = 'Please select a member';
+        $errors['member_id'] = 'Member information is missing';
     } else {
         // Verify member exists and is active
         $memberCheck = $pdo->prepare("SELECT member_id FROM members WHERE member_id = ? AND status = 'Active'");
@@ -222,19 +253,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
-                                        <label for="member_id" class="form-label">Member *</label>
-                                        <select class="form-select <?php echo isset($errors['member_id']) ? 'is-invalid' : ''; ?>" 
-                                                id="member_id" name="member_id" required>
-                                            <option value="">-- Select Member --</option>
-                                            <?php foreach ($members as $member): ?>
-                                                <option value="<?php echo $member['member_id']; ?>" 
-                                                        <?php echo ($formData['member_id'] ?? '') === $member['member_id'] ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($member['member_name']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <?php if (isset($errors['member_id'])): ?>
-                                            <div class="invalid-feedback"><?php echo $errors['member_id']; ?></div>
+                                        <?php if ($isAdmin): ?>
+                                            <!-- Admin: Show dropdown to select any member -->
+                                            <label for="member_id" class="form-label">Member *</label>
+                                            <select class="form-select <?php echo isset($errors['member_id']) ? 'is-invalid' : ''; ?>" 
+                                                    id="member_id" name="member_id" required>
+                                                <option value="">-- Select Member --</option>
+                                                <?php foreach ($members as $member): ?>
+                                                    <option value="<?php echo $member['member_id']; ?>" 
+                                                            <?php echo ($formData['member_id'] ?? '') === $member['member_id'] ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($member['member_name']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <?php if (isset($errors['member_id'])): ?>
+                                                <div class="invalid-feedback"><?php echo $errors['member_id']; ?></div>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <!-- Member: Show read-only member info -->
+                                            <label for="member_name" class="form-label">Your Member Profile</label>
+                                            <div class="form-control-plaintext bg-light border rounded p-2">
+                                                <strong>
+                                                    <?php 
+                                                    foreach ($members as $member) {
+                                                        echo htmlspecialchars($member['member_name']);
+                                                    }
+                                                    ?>
+                                                </strong>
+                                                <small class="text-muted d-block mt-1">ID: <code><?php echo htmlspecialchars($currentMemberId); ?></code></small>
+                                            </div>
+                                            <input type="hidden" name="member_id" value="<?php echo htmlspecialchars($currentMemberId); ?>">
                                         <?php endif; ?>
                                     </div>
 

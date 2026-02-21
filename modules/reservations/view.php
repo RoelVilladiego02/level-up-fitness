@@ -12,6 +12,20 @@ $reservationId = sanitize($_GET['id'] ?? '');
 $reservation = null;
 $member = null;
 $equipment = null;
+$isAdmin = $_SESSION['user_type'] === 'admin';
+$currentMemberId = null;
+
+// Get current user's member ID if they are a member
+if (!$isAdmin && $_SESSION['user_type'] === 'member') {
+    try {
+        $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ? AND status = 'Active'");
+        $memberStmt->execute([$_SESSION['user_id']]);
+        $memberData = $memberStmt->fetch();
+        $currentMemberId = $memberData['member_id'] ?? null;
+    } catch (Exception $e) {
+        setMessage('Error loading member data: ' . $e->getMessage(), 'error');
+    }
+}
 
 if (!empty($reservationId)) {
     try {
@@ -22,6 +36,11 @@ if (!empty($reservationId)) {
         if (!$reservation) {
             setMessage('Reservation not found', 'error');
             redirect(APP_URL . 'modules/reservations/');
+        }
+        
+        // Members can only view their own reservations
+        if (!$isAdmin && $reservation['member_id'] !== $currentMemberId) {
+            die('Access denied: You can only view your own reservations.');
         }
 
         // Get member info

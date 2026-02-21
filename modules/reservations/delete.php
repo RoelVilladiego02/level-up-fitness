@@ -13,6 +13,25 @@ if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'member') {
 }
 
 $reservationId = sanitize($_GET['id'] ?? '');
+$isAdmin = $_SESSION['user_type'] === 'admin';
+$currentMemberId = null;
+
+// Get current user's member ID if they are a member
+if (!$isAdmin) {
+    try {
+        $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ? AND status = 'Active'");
+        $memberStmt->execute([$_SESSION['user_id']]);
+        $memberData = $memberStmt->fetch();
+        $currentMemberId = $memberData['member_id'] ?? null;
+        
+        // If user is a member but doesn't have a member record, deny access
+        if (!$currentMemberId) {
+            die('Access denied: No active member record found for your account.');
+        }
+    } catch (Exception $e) {
+        setMessage('Error loading member data: ' . $e->getMessage(), 'error');
+    }
+}
 
 if (empty($reservationId)) {
     setMessage('Invalid reservation ID', 'error');
@@ -28,6 +47,11 @@ try {
     if (!$reservation) {
         setMessage('Reservation not found', 'error');
         redirect(APP_URL . 'modules/reservations/');
+    }
+    
+    // Members can only delete their own reservations
+    if (!$isAdmin && $reservation['member_id'] !== $currentMemberId) {
+        die('Access denied: You can only delete your own reservations.');
     }
 
     // If confirmed

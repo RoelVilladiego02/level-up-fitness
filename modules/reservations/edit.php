@@ -18,11 +18,36 @@ $errors = [];
 $formData = [];
 $members = [];
 $equipment = [];
+$isAdmin = $_SESSION['user_type'] === 'admin';
+$currentMemberId = null;
+
+// Get current user's member ID if they are a member
+if (!$isAdmin) {
+    try {
+        $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ? AND status = 'Active'");
+        $memberStmt->execute([$_SESSION['user_id']]);
+        $memberData = $memberStmt->fetch();
+        $currentMemberId = $memberData['member_id'] ?? null;
+        
+        // If user is a member but doesn't have a member record, deny access
+        if (!$currentMemberId) {
+            die('Access denied: No active member record found for your account.');
+        }
+    } catch (Exception $e) {
+        setMessage('Error loading member data: ' . $e->getMessage(), 'error');
+    }
+}
 
 // Load members and equipment for dropdowns
 try {
-    $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE status = 'Active' ORDER BY member_name");
-    $memberStmt->execute();
+    // If member, only load their own member info; if admin, load all active members
+    if ($isAdmin) {
+        $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE status = 'Active' ORDER BY member_name");
+        $memberStmt->execute();
+    } else {
+        $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE member_id = ? AND status = 'Active'");
+        $memberStmt->execute([$currentMemberId]);
+    }
     $members = $memberStmt->fetchAll();
 
     $equipmentStmt = $pdo->prepare("SELECT equipment_id, equipment_name FROM equipment ORDER BY equipment_name");
@@ -42,6 +67,11 @@ if (!empty($reservationId)) {
         if (!$reservation) {
             setMessage('Reservation not found', 'error');
             redirect(APP_URL . 'modules/reservations/');
+        }
+        
+        // Members can only edit their own reservations
+        if (!$isAdmin && $reservation['member_id'] !== $currentMemberId) {
+            die('Access denied: You can only edit your own reservations.');
         }
         
         // Check member status
@@ -212,7 +242,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
 
                                 <div class="mb-3">
                                     <label class="form-label">Member</label>
-                                    <input type="text" class="form-control" disabled value="<?php echo htmlspecialchars($reservation['member_id']); ?>">
+                                    <div class="form-control-plaintext bg-light border rounded p-2">
+                                        <strong>
+                                            <?php 
+                                            // Find and display member name
+                                            foreach ($members as $member) {
+                                                if ($member['member_id'] === $reservation['member_id']) {
+                                                    echo htmlspecialchars($member['member_name']);
+                                                    break;
+                                                }
+                                            }
+                                            ?>
+                                        </strong>
+                                        <small class="text-muted d-block mt-1">ID: <code><?php echo htmlspecialchars($reservation['member_id']); ?></code></small>
+                                    </div>
                                     <small class="text-muted">Member cannot be changed</small>
                                 </div>
 
