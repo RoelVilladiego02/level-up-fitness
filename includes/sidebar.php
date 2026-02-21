@@ -137,31 +137,34 @@ $userRole = $_SESSION['user_type'] ?? 'member';
 <style>
 .sidebar {
     position: relative;
-    background-color: #f8f9fa;
+    background-color: #2c3e50;
     min-height: calc(100vh - 60px);
     overflow-y: auto;
     box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
 }
 
 .sidebar .nav-link {
-    color: #212529;
+    color: #ecf0f1;
     padding: 0.75rem 1.5rem;
     font-weight: 600;
     font-size: 0.95rem;
-    border-left: 3px solid transparent;
+    border-left: 4px solid transparent;
     transition: all 0.3s ease;
+    margin: 0.25rem 0;
 }
 
 .sidebar .nav-link:hover {
-    color: var(--primary-color);
-    background-color: rgba(74, 144, 226, 0.05);
-    border-left-color: var(--primary-color);
+    color: #fff;
+    background-color: rgba(74, 144, 226, 0.2);
+    border-left-color: #4a90e2;
+    transform: translateX(5px);
 }
 
 .sidebar .nav-link.active {
-    color: var(--primary-color);
-    background-color: rgba(74, 144, 226, 0.1);
-    border-left-color: var(--primary-color);
+    color: #fff;
+    background-color: rgba(74, 144, 226, 0.3);
+    border-left-color: #4a90e2;
+    box-shadow: inset -3px 0 0 #4a90e2;
 }
 
 .sidebar .nav-link i {
@@ -175,7 +178,7 @@ $userRole = $_SESSION['user_type'] ?? 'member';
     text-transform: uppercase;
     letter-spacing: 0.05rem;
     padding-top: 0.5rem;
-    color: var(--primary-color) !important;
+    color: #4a90e2 !important;
     font-weight: 700;
 }
 
