@@ -8,9 +8,9 @@
 $userRole = $_SESSION['user_type'] ?? 'member';
 ?>
 
-<nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+<nav class="col-md-3 col-lg-2 d-md-block sidebar">
     <div class="position-sticky pt-3">
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
             <span>MAIN MENU</span>
         </h6>
         <ul class="nav flex-column">
@@ -22,7 +22,7 @@ $userRole = $_SESSION['user_type'] ?? 'member';
         </ul>
 
         <?php if ($userRole === 'admin'): ?>
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
             <span>MANAGEMENT</span>
         </h6>
         <ul class="nav flex-column">
@@ -45,7 +45,7 @@ $userRole = $_SESSION['user_type'] ?? 'member';
         <?php endif; ?>
 
         <?php if ($userRole === 'admin' || $userRole === 'member'): ?>
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
             <span>MEMBER OPERATIONS</span>
         </h6>
         <ul class="nav flex-column">
@@ -70,7 +70,7 @@ $userRole = $_SESSION['user_type'] ?? 'member';
         <?php endif; ?>
 
         <?php if ($userRole === 'admin' || $userRole === 'trainer'): ?>
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
             <span>TRAINER OPERATIONS</span>
         </h6>
         <ul class="nav flex-column">
@@ -93,7 +93,7 @@ $userRole = $_SESSION['user_type'] ?? 'member';
         <?php endif; ?>
 
         <?php if ($userRole === 'admin'): ?>
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
             <span>FINANCE</span>
         </h6>
         <ul class="nav flex-column">
@@ -104,7 +104,7 @@ $userRole = $_SESSION['user_type'] ?? 'member';
             </li>
         </ul>
 
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
             <span>REPORTS</span>
         </h6>
         <ul class="nav flex-column">
@@ -121,7 +121,7 @@ $userRole = $_SESSION['user_type'] ?? 'member';
         </ul>
         <?php endif; ?>
 
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
             <span>SETTINGS</span>
         </h6>
         <ul class="nav flex-column">
