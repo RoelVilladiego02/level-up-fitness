@@ -449,4 +449,131 @@ function generatePagination($currentPage, $totalPages, $baseUrl = '') {
     return $html;
 }
 
+/**
+ * Send email notification
+ * Supports both PHP mail() and SMTP configuration
+ */
+function sendEmailNotification($toEmail, $subject, $messageBody, $type = 'text') {
+    // Validate email
+    if (!isValidEmail($toEmail)) {
+        error_log('Invalid email address: ' . $toEmail);
+        return false;
+    }
+    
+    // Prepare headers
+    $headers = "MIME-Version: 1.0\r\n";
+    if ($type === 'html') {
+        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    } else {
+        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    }
+    $headers .= "From: " . (defined('FROM_EMAIL') ? FROM_EMAIL : 'noreply@levelupfitness.local') . "\r\n";
+    $headers .= "Reply-To: " . (defined('SUPPORT_EMAIL') ? SUPPORT_EMAIL : 'support@levelupfitness.local') . "\r\n";
+    $headers .= "X-Mailer: Level Up Fitness System\r\n";
+    
+    // Sanitize subject
+    $subject = substr($subject, 0, 100);
+    
+    try {
+        // Use PHP mail function (configured in php.ini or via SMTP relay)
+        $result = mail($toEmail, $subject, $messageBody, $headers);
+        
+        if ($result) {
+            // Log successful email send
+            error_log('Email sent to ' . $toEmail . ' with subject: ' . $subject);
+        } else {
+            error_log('Failed to send email to ' . $toEmail);
+        }
+        
+        return $result;
+    } catch (Exception $e) {
+        error_log('Exception sending email: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Send payment confirmation email
+ */
+function sendPaymentConfirmationEmail($email, $paymentId, $amount, $paymentMethod, $status) {
+    $subject = 'Level Up Fitness - Payment Confirmation (' . $paymentId . ')';
+    
+    $messageBody = "
+Hello,
+
+Thank you for your payment to Level Up Fitness!
+
+--- PAYMENT CONFIRMATION ---
+Payment ID: " . $paymentId . "
+Amount: " . formatCurrency($amount) . "
+Payment Method: " . htmlspecialchars($paymentMethod) . "
+Status: " . $status . "
+Date: " . date('F j, Y H:i A') . "
+
+Your payment has been received and processed successfully.
+
+For any inquiries, please contact our support team.
+
+Best regards,
+Level Up Fitness Gym Management System
+    ";
+    
+    return sendEmailNotification($email, $subject, $messageBody, 'text');
+}
+
+/**
+ * Send reservation confirmation email
+ */
+function sendReservationConfirmationEmail($email, $reservationId, $equipmentName, $reservationDate, $startTime, $endTime) {
+    $subject = 'Level Up Fitness - Reservation Confirmed (' . $reservationId . ')';
+    
+    $messageBody = "
+Hello,
+
+Your equipment reservation has been confirmed!
+
+--- RESERVATION DETAILS ---
+Reservation ID: " . $reservationId . "
+Equipment: " . htmlspecialchars($equipmentName) . "
+Date: " . formatDate($reservationDate) . "
+Time: " . $startTime . " - " . $endTime . "
+
+Please arrive 5 minutes before your reservation time.
+
+For cancellations or changes, contact the gym or reply to this email.
+
+Best regards,
+Level Up Fitness Gym Management System
+    ";
+    
+    return sendEmailNotification($email, $subject, $messageBody, 'text');
+}
+
+/**
+ * Send session registration email
+ */
+function sendSessionRegistrationEmail($email, $sessionName, $trainerName, $sessionDate, $sessionTime, $duration) {
+    $subject = 'Level Up Fitness - Session Registration';
+    
+    $messageBody = "
+Hello,
+
+You have been registered for a training session!
+
+--- SESSION DETAILS ---
+Session: " . htmlspecialchars($sessionName) . "
+Trainer: " . htmlspecialchars($trainerName) . "
+Date: " . formatDate($sessionDate) . "
+Time: " . $sessionTime . "
+Duration: " . $duration . " minutes
+
+Please arrive 10 minutes early to prepare.
+
+Best regards,
+Level Up Fitness Gym Management System
+    ";
+    
+    return sendEmailNotification($email, $subject, $messageBody, 'text');
+}
+
 ?>

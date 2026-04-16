@@ -95,10 +95,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     if (empty($sessionTime)) $errors[] = 'Session time is required';
-    if (empty($duration)) $errors[] = 'Duration is required';
-    if (empty($maxCapacity)) $errors[] = 'Max capacity is required';
+    if (empty($duration)) {
+        $errors[] = 'Duration is required';
+    } elseif (!is_numeric($duration) || $duration < 15) {
+        $errors[] = 'Duration must be at least 15 minutes';
+    } elseif ($duration > 480) {
+        $errors[] = 'Duration cannot exceed 8 hours';
+    }
+    if (empty($maxCapacity)) {
+        $errors[] = 'Max capacity is required';
+    } elseif (!is_numeric($maxCapacity) || $maxCapacity < 1) {
+        $errors[] = 'Max capacity must be at least 1';
+    }
+    
+    // Check for trainer double-booking conflicts (excluding current session)
+    if (empty($errors) && !empty($trainerId) && !empty($sessionDate) && !empty($sessionTime)) {
+        try {
+            // Calculate end time from session_time and duration
+            $startTime = new DateTime('2000-01-01 ' . $sessionTime);
+            $endTime = clone $startTime;
+            $endTime->add(new DateInterval('PT' . intval($duration) . 'M'));
+            
+            // Check if trainer has any other sessions at overlapping time on same date
+            $conflictStmt = $pdo->prepare("
+                SELECT COUNT(*) as count FROM training_sessions 
+                WHERE trainer_id = ? 
+                AND session_date = ? 
+                AND session_id != ?
+                AND status IN ('Scheduled', 'Ongoing')
+                AND (
+                    (TIME(session_time) < TIME(?) AND TIME(DATE_ADD(session_time, INTERVAL duration MINUTE)) > TIME(?))
+                    OR (TIME(session_time) = TIME(?) AND TIME(DATE_ADD(session_time, INTERVAL duration MINUTE)) > TIME(?))
+                    OR (TIME(session_time) < TIME(?) AND TIME(DATE_ADD(session_time, INTERVAL duration MINUTE)) = TIME(?))
+                )
+            ");
+            $endTimeStr = $endTime->format('H:i:s');
+            $conflictStmt->execute([
+                $trainerId,
+                $sessionDate,
+                $sessionId,
+                $endTimeStr,
+                $sessionTime,
+                $sessionTime,
+                $sessionTime,
+                $endTimeStr,
+                $endTimeStr
+            ]);
+            $conflict = $conflictStmt->fetch();
+            if ($conflict['count'] > 0) {
+                $errors['trainer_conflict'] = 'This trainer is already scheduled for another session at this time';
+            }
+        } catch (Exception $e) {
+            $errors['database'] = 'Error checking trainer availability: ' . $e->getMessage();
+        }
+    }
 
     if (count($errors) > 0) {
+        $_SESSION['form_errors'] = $errors;
         setMessage('Please fix the following errors: ' . implode(', ', $errors), 'error');
     } else {
         try {

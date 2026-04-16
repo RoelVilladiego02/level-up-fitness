@@ -194,6 +194,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
             ]);
 
             logAction($_SESSION['user_id'], 'EDIT_RESERVATION', 'Reservations', 'Updated reservation: ' . $reservationId);
+            
+            // Send email notification if status changed to Confirmed
+            if ($formData['status'] === 'Confirmed' && $reservation['status'] !== 'Confirmed') {
+                try {
+                    $memberStmt = $pdo->prepare("SELECT email FROM members WHERE member_id = ?");
+                    $memberStmt->execute([$reservation['member_id']]);
+                    $memberData = $memberStmt->fetch();
+                    
+                    $equipmentStmt = $pdo->prepare("SELECT equipment_name FROM equipment WHERE equipment_id = ?");
+                    $equipmentStmt->execute([$reservation['equipment_id']]);
+                    $equipmentData = $equipmentStmt->fetch();
+                    
+                    if ($memberData && !empty($memberData['email']) && $equipmentData) {
+                        sendReservationConfirmationEmail(
+                            $memberData['email'],
+                            $reservationId,
+                            $equipmentData['equipment_name'],
+                            $formData['reservation_date'],
+                            $formData['start_time'],
+                            $formData['end_time']
+                        );
+                    }
+                } catch (Exception $e) {
+                    error_log('Failed to send reservation confirmation email: ' . $e->getMessage());
+                }
+            }
 
             setMessage('Reservation updated successfully', 'success');
             redirect(APP_URL . 'modules/reservations/view.php?id=' . $reservationId);
