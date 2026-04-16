@@ -68,6 +68,69 @@ try {
         $pdo->exec("ALTER TABLE members ADD INDEX idx_trainer_id (trainer_id)");
     }
     
+    // Check if notifications table exists, if not create it
+    $result = $pdo->query("SHOW TABLES LIKE 'notifications'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Creating notifications table...\n";
+        $pdo->exec("
+            CREATE TABLE notifications (
+                notification_id INT PRIMARY KEY AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                notification_type VARCHAR(50) NOT NULL COMMENT 'payment, reservation, account, system, etc',
+                notification_title VARCHAR(255) NOT NULL,
+                notification_message LONGTEXT NOT NULL,
+                notification_icon VARCHAR(50) DEFAULT 'bell' COMMENT 'fa-icon name',
+                icon_color VARCHAR(20) DEFAULT 'primary' COMMENT 'Bootstrap color class',
+                related_entity_type VARCHAR(50) COMMENT 'payment, reservation, member, trainer, etc',
+                related_entity_id VARCHAR(50) COMMENT 'ID of the related entity',
+                action_url VARCHAR(500) COMMENT 'URL to view or act on notification',
+                is_read TINYINT DEFAULT 0,
+                read_at DATETIME NULL,
+                email_sent TINYINT DEFAULT 0,
+                email_sent_at DATETIME NULL,
+                priority ENUM('low', 'normal', 'high', 'urgent') DEFAULT 'normal',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME NULL COMMENT 'When notification should be auto-deleted',
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                INDEX idx_user_id (user_id),
+                INDEX idx_notification_type (notification_type),
+                INDEX idx_is_read (is_read),
+                INDEX idx_created_at (created_at),
+                INDEX idx_priority (priority),
+                INDEX idx_user_read (user_id, is_read),
+                INDEX idx_user_created (user_id, created_at),
+                INDEX idx_unread_count (user_id, is_read, created_at DESC),
+                INDEX idx_expiration (expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+    
+    // Check if notification_preferences table exists, if not create it
+    $result = $pdo->query("SHOW TABLES LIKE 'notification_preferences'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Creating notification_preferences table...\n";
+        $pdo->exec("
+            CREATE TABLE notification_preferences (
+                preference_id INT PRIMARY KEY AUTO_INCREMENT,
+                user_id INT NOT NULL UNIQUE,
+                email_payments TINYINT DEFAULT 1,
+                email_reservations TINYINT DEFAULT 1,
+                email_account TINYINT DEFAULT 1,
+                email_system TINYINT DEFAULT 1,
+                in_app_payments TINYINT DEFAULT 1,
+                in_app_reservations TINYINT DEFAULT 1,
+                in_app_account TINYINT DEFAULT 1,
+                in_app_system TINYINT DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                INDEX idx_user_id (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+    
     echo "✓ Schema check complete\n\n";
     
     // Get all tables
@@ -111,6 +174,10 @@ try {
     // Sample members (assigned to trainer)
     $pdo->exec("INSERT INTO members (member_id, user_id, member_name, contact_number, email, membership_type, join_date, trainer_id, status) VALUES ('MEM001', 3, 'John Doe', '09123456789', 'john@email.com', 'Monthly', CURDATE(), 'TRN001', 'Active')");
     echo "  ✓ Sample member: John Doe (assigned to trainer Jane Smith)\n";
+    
+    // Set up notification preferences for all users
+    $pdo->exec("INSERT IGNORE INTO notification_preferences (user_id) SELECT user_id FROM users WHERE user_id NOT IN (SELECT user_id FROM notification_preferences)");
+    echo "  ✓ Notification preferences initialized for all users\n";
     
     // Sample gym
     $pdo->exec("INSERT INTO gyms (gym_id, gym_branch, gym_name, location, description, contact_number) VALUES ('GYM001', 'Main Branch', 'Level Up Fitness - Main', 'Manila, Philippines', 'Our flagship gym with state-of-the-art equipment and facilities', '02-1234-5678')");

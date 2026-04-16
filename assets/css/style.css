@@ -990,3 +990,177 @@ body {
 .card-body p {
     color: var(--text-secondary) !important;
 }
+
+/* ==================== NOTIFICATION SYSTEM STYLING ==================== */
+
+/* Notification Bell Container */
+.notification-bell-container {
+    position: relative;
+}
+
+.notification-bell-container .btn-link {
+    text-decoration: none;
+    padding: 0;
+}
+
+.notification-bell-container .badge {
+    font-size: 10px !important;
+    padding: 3px 6px !important;
+    top: -5px !important;
+    right: -5px !important;
+}
+
+/* Notification Dropdown */
+.notification-dropdown {
+    background: var(--bg-elevated) !important;
+    border: 1px solid var(--border-default) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.notification-item {
+    padding: 12px 16px !important;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: all 0.2s ease;
+}
+
+.notification-item.unread {
+    background: rgba(74, 144, 226, 0.05) !important;
+}
+
+.notification-item:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.notification-title i {
+    margin-right: 6px;
+}
+
+.notification-message {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary) !important;
+}
+
+.notification-time {
+    font-size: 11px;
+    color: var(--text-muted) !important;
+}
+
+.notification-indicator {
+    margin-top: 4px;
+}
+
+.notification-indicator .badge {
+    width: 8px;
+    height: 8px;
+    padding: 0 !important;
+}
+
+/* Notification Card in Center */
+.notifications-list .notification-card {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-default) !important;
+    transition: all 0.2s ease;
+}
+
+.notifications-list .notification-card.unread {
+    border-left: 4px solid #4A90E2;
+    background: rgba(74, 144, 226, 0.02) !important;
+}
+
+.notifications-list .notification-card.read {
+    opacity: 0.85;
+}
+
+.notification-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(74, 144, 226, 0.1);
+    border-radius: 4px;
+}
+
+.notification-header h6 {
+    color: var(--text-primary) !important;
+    font-weight: 600;
+    margin-bottom: 4px !important;
+}
+
+.notification-header .badge {
+    font-size: 10px !important;
+}
+
+.notification-actions .btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    margin-right: 6px;
+}
+
+.notification-actions .btn-outline-primary {
+    color: #4A90E2 !important;
+    border-color: #4A90E2 !important;
+}
+
+.notification-actions .btn-outline-primary:hover {
+    background: #4A90E2 !important;
+    color: white !important;
+}
+
+/* Alert styles for notification center */
+.notification-center-alert {
+    background: rgba(74, 144, 226, 0.1) !important;
+    border-left: 4px solid #4A90E2;
+    color: var(--text-secondary) !important;
+}
+
+.notification-center-alert i {
+    color: #4A90E2;
+}
+
+/* Loading state for notifications */
+.notification-item.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Toast notification in header */
+.toast-notification {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}

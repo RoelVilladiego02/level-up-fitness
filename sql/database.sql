@@ -302,6 +302,59 @@ CREATE TABLE workout_templates (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
+-- 15. NOTIFICATIONS TABLE
+-- ============================================
+CREATE TABLE notifications (
+    notification_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    notification_type VARCHAR(50) NOT NULL COMMENT 'payment, reservation, account, system, etc',
+    notification_title VARCHAR(255) NOT NULL,
+    notification_message LONGTEXT NOT NULL,
+    notification_icon VARCHAR(50) DEFAULT 'bell' COMMENT 'fa-icon name',
+    icon_color VARCHAR(20) DEFAULT 'primary' COMMENT 'Bootstrap color class',
+    related_entity_type VARCHAR(50) COMMENT 'payment, reservation, member, trainer, etc',
+    related_entity_id VARCHAR(50) COMMENT 'ID of the related entity',
+    action_url VARCHAR(500) COMMENT 'URL to view or act on notification',
+    is_read TINYINT DEFAULT 0,
+    read_at DATETIME NULL,
+    email_sent TINYINT DEFAULT 0,
+    email_sent_at DATETIME NULL,
+    priority ENUM('low', 'normal', 'high', 'urgent') DEFAULT 'normal',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NULL COMMENT 'When notification should be auto-deleted',
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_notification_type (notification_type),
+    INDEX idx_is_read (is_read),
+    INDEX idx_created_at (created_at),
+    INDEX idx_priority (priority),
+    INDEX idx_user_read (user_id, is_read),
+    INDEX idx_user_created (user_id, created_at),
+    INDEX idx_unread_count (user_id, is_read, created_at DESC),
+    INDEX idx_expiration (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 16. NOTIFICATION_PREFERENCES TABLE
+-- ============================================
+CREATE TABLE notification_preferences (
+    preference_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL UNIQUE,
+    email_payments TINYINT DEFAULT 1,
+    email_reservations TINYINT DEFAULT 1,
+    email_account TINYINT DEFAULT 1,
+    email_system TINYINT DEFAULT 1,
+    in_app_payments TINYINT DEFAULT 1,
+    in_app_reservations TINYINT DEFAULT 1,
+    in_app_account TINYINT DEFAULT 1,
+    in_app_system TINYINT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
 -- SAMPLE DATA (Optional)
 -- ============================================
 

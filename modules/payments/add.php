@@ -65,13 +65,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logAction($_SESSION['user_id'], 'ADD_PAYMENT', 'Payments', 
                      'Recorded payment of ' . formatCurrency($formData['amount']) . ' from member ' . $formData['member_id']);
             
-            // Send payment confirmation email
+            // Send payment notification and email
             try {
-                $memberStmt = $pdo->prepare("SELECT email FROM members WHERE member_id = ?");
+                $memberStmt = $pdo->prepare("SELECT user_id, email FROM members WHERE member_id = ?");
                 $memberStmt->execute([$formData['member_id']]);
                 $memberData = $memberStmt->fetch();
+                
                 if ($memberData && !empty($memberData['email'])) {
-                    sendPaymentConfirmationEmail(
+                    // Send both in-app and email notification
+                    sendPaymentNotification(
+                        $memberData['user_id'],
                         $memberData['email'],
                         $paymentId,
                         $formData['amount'],
@@ -80,10 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                 }
             } catch (Exception $e) {
-                error_log('Failed to send payment email: ' . $e->getMessage());
+                error_log('Failed to send payment notification: ' . $e->getMessage());
             }
 
-            setMessage('Payment recorded successfully! ID: ' . $paymentId . ' (Confirmation email sent)', 'success');
+            setMessage('Payment recorded successfully! ID: ' . $paymentId . ' (Notification sent)', 'success');
             redirect(APP_URL . 'modules/payments/');
         } catch (Exception $e) {
             setMessage('Error recording payment: ' . $e->getMessage(), 'error');

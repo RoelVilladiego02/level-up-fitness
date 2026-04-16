@@ -199,9 +199,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logAction($_SESSION['user_id'], 'CREATE_RESERVATION', 'Reservations', 
                      'Created reservation: ' . $reservationId);
             
-            // Send reservation confirmation email
+            // Send reservation notification with in-app + email
             try {
-                $memberStmt = $pdo->prepare("SELECT email FROM members WHERE member_id = ?");
+                $memberStmt = $pdo->prepare("SELECT user_id, email FROM members WHERE member_id = ?");
                 $memberStmt->execute([$formData['member_id']]);
                 $memberData = $memberStmt->fetch();
                 
@@ -210,7 +210,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $equipmentData = $equipmentStmt->fetch();
                 
                 if ($memberData && !empty($memberData['email']) && $equipmentData) {
-                    sendReservationConfirmationEmail(
+                    sendReservationNotification(
+                        $memberData['user_id'],
                         $memberData['email'],
                         $reservationId,
                         $equipmentData['equipment_name'],
@@ -220,10 +221,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                 }
             } catch (Exception $e) {
-                error_log('Failed to send reservation email: ' . $e->getMessage());
+                error_log('Failed to send reservation notification: ' . $e->getMessage());
             }
 
-            setMessage('Reservation created successfully! ID: ' . $reservationId . ' (Confirmation email sent)', 'success');
+            setMessage('Reservation created successfully! ID: ' . $reservationId . ' (Notification sent)', 'success');
             redirect(APP_URL . 'modules/reservations/');
         } catch (Exception $e) {
             setMessage('Error creating reservation: ' . $e->getMessage(), 'error');

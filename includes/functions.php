@@ -185,6 +185,30 @@ function formatCurrency($amount) {
 }
 
 /**
+ * Time ago format (e.g., "2 minutes ago")
+ */
+function timeAgo($dateTime) {
+    $time = strtotime($dateTime);
+    $current_time = time();
+    $diff = $current_time - $time;
+    
+    if ($diff < 60) {
+        return 'Just now';
+    } elseif ($diff < 3600) {
+        $minutes = floor($diff / 60);
+        return $minutes . ' minute' . ($minutes > 1 ? 's' : '') . ' ago';
+    } elseif ($diff < 86400) {
+        $hours = floor($diff / 3600);
+        return $hours . ' hour' . ($hours > 1 ? 's' : '') . ' ago';
+    } elseif ($diff < 604800) {
+        $days = floor($diff / 86400);
+        return $days . ' day' . ($days > 1 ? 's' : '') . ' ago';
+    } else {
+        return formatDate($dateTime, 'M d, Y');
+    }
+}
+
+/**
  * Check membership expiry
  */
 function isMembershipExpired($joinDate, $membershipType) {
@@ -576,4 +600,433 @@ Level Up Fitness Gym Management System
     return sendEmailNotification($email, $subject, $messageBody, 'text');
 }
 
+/**
+ * ============================================
+ * NOTIFICATION SYSTEM FUNCTIONS
+ * ============================================
+ * Handles both in-app and email notifications
+ */
+
+/**
+ * Create a notification for a user
+ * @param int $userId - User ID
+ * @param string $type - Notification type (payment, reservation, account, system)
+ * @param string $title - Notification title
+ * @param string $message - Notification message
+ * @param array $options - Additional options (icon, color, action_url, entity_type, entity_id, priority, expires_at)
+ * @return int|false - Notification ID or false on failure
+ */
+function createNotification($userId, $type, $title, $message, $options = []) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO notifications (
+                user_id, 
+                notification_type, 
+                notification_title, 
+                notification_message, 
+                notification_icon, 
+                icon_color, 
+                related_entity_type, 
+                related_entity_id, 
+                action_url, 
+                priority, 
+                expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        
+        $icon = $options['icon'] ?? 'bell';
+        $color = $options['color'] ?? 'primary';
+        $entityType = $options['entity_type'] ?? null;
+        $entityId = $options['entity_id'] ?? null;
+        $actionUrl = $options['action_url'] ?? null;
+        $priority = $options['priority'] ?? 'normal';
+        $expiresAt = $options['expires_at'] ?? null;
+        
+        $stmt->execute([
+            $userId,
+            $type,
+            $title,
+            $message,
+            $icon,
+            $color,
+            $entityType,
+            $entityId,
+            $actionUrl,
+            $priority,
+            $expiresAt
+        ]);
+        
+        return $pdo->lastInsertId();
+    } catch (Exception $e) {
+        error_log('Error creating notification: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Send notification (in-app + email)
+ * @param int $userId - User ID to notify
+ * @param string $type - Notification type
+ * @param string $title - Notification title
+ * @param string $message - Notification message
+ * @param array $emailData - Email data (subject, body, recipient_email)
+ * @param array $options - Additional options
+ * @return bool - Success status
+ */
+function sendNotification($userId, $type, $title, $message, $emailData = [], $options = []) {
+    // Check user notification preferences
+    if (!shouldSendNotification($userId, $type)) {
+        return false;
+    }
+    
+    // Create in-app notification
+    $notificationId = createNotification($userId, $type, $title, $message, $options);
+    
+    if (!$notificationId) {
+        error_log("Failed to create in-app notification for user $userId");
+        return false;
+    }
+    
+    // Send email if provided
+    if (!empty($emailData['recipient_email'])) {
+        $emailSent = sendEmailNotification(
+            $emailData['recipient_email'],
+            $emailData['subject'] ?? $title,
+            $emailData['body'] ?? $message,
+            'html'
+        );
+        
+        // Mark email as sent in database
+        if ($emailSent) {
+            markNotificationEmailSent($notificationId);
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Check if notification should be sent based on user preferences
+ */
+function shouldSendNotification($userId, $type) {
+    global $pdo;
+    
+    try {
+        // Get notification preference
+        $typeKey = 'in_app_' . str_replace('-', '_', strtolower($type));
+        
+        $stmt = $pdo->prepare("SELECT * FROM notification_preferences WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $preference = $stmt->fetch();
+        
+        if (!$preference) {
+            // Default: send all notifications if no preference is set
+            return true;
+        }
+        
+        // Check if this notification type is enabled
+        return (bool) $preference[$typeKey] ?? true;
+    } catch (Exception $e) {
+        error_log('Error checking notification preference: ' . $e->getMessage());
+        return true; // Default to sending
+    }
+}
+
+/**
+ * Mark notification email as sent
+ */
+function markNotificationEmailSent($notificationId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE notifications 
+            SET email_sent = 1, email_sent_at = NOW() 
+            WHERE notification_id = ?
+        ");
+        return $stmt->execute([$notificationId]);
+    } catch (Exception $e) {
+        error_log('Error updating notification email status: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Get user notifications
+ * @param int $userId - User ID
+ * @param bool $unreadOnly - Get only unread notifications
+ * @param int $limit - Limit results
+ * @param int $offset - Offset for pagination
+ * @return array - Array of notifications
+ */
+function getUserNotifications($userId, $unreadOnly = false, $limit = 50, $offset = 0) {
+    global $pdo;
+    
+    try {
+        $query = "SELECT * FROM notifications WHERE user_id = ?";
+        
+        if ($unreadOnly) {
+            $query .= " AND is_read = 0";
+        }
+        
+        $query .= " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$userId, $limit, $offset]);
+        
+        return $stmt->fetchAll();
+    } catch (Exception $e) {
+        error_log('Error fetching notifications: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Get unread notification count
+ */
+function getUnreadNotificationCount($userId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as unread_count 
+            FROM notifications 
+            WHERE user_id = ? AND is_read = 0
+        ");
+        $stmt->execute([$userId]);
+        $result = $stmt->fetch();
+        
+        return $result['unread_count'] ?? 0;
+    } catch (Exception $e) {
+        error_log('Error counting unread notifications: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Get unread notifications (for header dropdown)
+ */
+function getUnreadNotifications($userId, $limit = 10) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT * FROM notifications 
+            WHERE user_id = ? AND is_read = 0 
+            ORDER BY priority DESC, created_at DESC 
+            LIMIT ?
+        ");
+        $stmt->execute([$userId, $limit]);
+        
+        return $stmt->fetchAll();
+    } catch (Exception $e) {
+        error_log('Error fetching unread notifications: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Mark notification as read
+ */
+function markNotificationAsRead($notificationId, $userId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE notifications 
+            SET is_read = 1, read_at = NOW() 
+            WHERE notification_id = ? AND user_id = ?
+        ");
+        return $stmt->execute([$notificationId, $userId]);
+    } catch (Exception $e) {
+        error_log('Error marking notification as read: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Mark all notifications as read for user
+ */
+function markAllNotificationsAsRead($userId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE notifications 
+            SET is_read = 1, read_at = NOW() 
+            WHERE user_id = ? AND is_read = 0
+        ");
+        return $stmt->execute([$userId]);
+    } catch (Exception $e) {
+        error_log('Error marking all notifications as read: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Delete notification
+ */
+function deleteNotification($notificationId, $userId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("DELETE FROM notifications WHERE notification_id = ? AND user_id = ?");
+        return $stmt->execute([$notificationId, $userId]);
+    } catch (Exception $e) {
+        error_log('Error deleting notification: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Delete all read notifications for user
+ */
+function deleteReadNotifications($userId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("DELETE FROM notifications WHERE user_id = ? AND is_read = 1");
+        return $stmt->execute([$userId]);
+    } catch (Exception $e) {
+        error_log('Error deleting read notifications: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Send Payment Notification
+ * Enhanced with in-app notification
+ */
+function sendPaymentNotification($userId, $email, $paymentId, $amount, $paymentMethod, $status) {
+    $title = 'Payment Confirmation';
+    $message = 'Your payment of ' . formatCurrency($amount) . ' has been ' . strtolower($status);
+    
+    $emailBody = "
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .email-container { max-width: 600px; margin: 0 auto; }
+        .header { background: #4A90E2; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .details { background: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 4px solid #4A90E2; }
+        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <div class='email-container'>
+        <div class='header'>
+            <h2>Payment Confirmation</h2>
+        </div>
+        <div class='content'>
+            <p>Hello,</p>
+            <p>Thank you for your payment to Level Up Fitness!</p>
+            <div class='details'>
+                <strong>Payment ID:</strong> " . htmlspecialchars($paymentId) . "<br>
+                <strong>Amount:</strong> " . formatCurrency($amount) . "<br>
+                <strong>Payment Method:</strong> " . htmlspecialchars($paymentMethod) . "<br>
+                <strong>Status:</strong> <span style='color: #27ae60; font-weight: bold;'>" . htmlspecialchars($status) . "</span>
+            </div>
+            <p>If you have any questions about this payment, please contact our support team.</p>
+            <p>Best regards,<br><strong>Level Up Fitness</strong></p>
+        </div>
+        <div class='footer'>
+            <p>© 2026 Level Up Fitness. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+    ";
+    
+    return sendNotification(
+        $userId,
+        'payment',
+        $title,
+        $message,
+        [
+            'recipient_email' => $email,
+            'subject' => $title,
+            'body' => $emailBody
+        ],
+        [
+            'icon' => 'credit-card',
+            'color' => 'success',
+            'entity_type' => 'payment',
+            'entity_id' => $paymentId,
+            'action_url' => APP_URL . 'modules/payments/invoice.php?id=' . $paymentId,
+            'priority' => 'normal'
+        ]
+    );
+}
+
+/**
+ * Send Reservation Notification
+ * Enhanced with in-app notification
+ */
+function sendReservationNotification($userId, $email, $reservationId, $equipmentName, $reservationDate, $startTime, $endTime) {
+    $title = 'Reservation Confirmed';
+    $message = 'Your reservation for ' . $equipmentName . ' on ' . formatDate($reservationDate) . ' is confirmed.';
+    
+    $emailBody = "
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .email-container { max-width: 600px; margin: 0 auto; }
+        .header { background: #27ae60; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .details { background: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 4px solid #27ae60; }
+        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <div class='email-container'>
+        <div class='header'>
+            <h2>Reservation Confirmed</h2>
+        </div>
+        <div class='content'>
+            <p>Hello,</p>
+            <p>Your equipment reservation has been confirmed!</p>
+            <div class='details'>
+                <strong>Reservation ID:</strong> " . htmlspecialchars($reservationId) . "<br>
+                <strong>Equipment:</strong> " . htmlspecialchars($equipmentName) . "<br>
+                <strong>Date:</strong> " . formatDate($reservationDate) . "<br>
+                <strong>Time:</strong> " . htmlspecialchars($startTime) . " - " . htmlspecialchars($endTime) . "
+            </div>
+            <p><strong>Please arrive 5 minutes before your reservation time.</strong></p>
+            <p>For cancellations or changes, contact the gym or reply to this email.</p>
+            <p>Best regards,<br><strong>Level Up Fitness</strong></p>
+        </div>
+        <div class='footer'>
+            <p>© 2026 Level Up Fitness. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+    ";
+    
+    return sendNotification(
+        $userId,
+        'reservation',
+        $title,
+        $message,
+        [
+            'recipient_email' => $email,
+            'subject' => $title,
+            'body' => $emailBody
+        ],
+        [
+            'icon' => 'calendar-check',
+            'color' => 'success',
+            'entity_type' => 'reservation',
+            'entity_id' => $reservationId,
+            'action_url' => APP_URL . 'modules/reservations/view.php?id=' . $reservationId,
+            'priority' => 'normal'
+        ]
+    );
+}
+
 ?>
+

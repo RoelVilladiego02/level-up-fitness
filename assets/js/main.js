@@ -188,3 +188,179 @@ function confirmAction(title, message, callback) {
     }
 }
 
+/**
+ * ============================================
+ * NOTIFICATION SYSTEM FUNCTIONS
+ * ============================================
+ */
+
+/**
+ * Mark notification as read
+ */
+function markNotificationRead(notificationId) {
+    $.ajax({
+        url: window.APP_URL + 'api/notifications.php',
+        method: 'POST',
+        dataType: 'json',
+        data: {
+            action: 'mark_read',
+            notification_id: notificationId
+        },
+        success: function(response) {
+            if (response.success) {
+                // Update notification bell count
+                updateNotificationBell();
+                // Show success Toast
+                showToast('Notification marked as read', 'success');
+                // Reload the notifications in dropdown
+                loadUnreadNotifications();
+            }
+        },
+        error: function() {
+            showToast('Error marking notification as read', 'danger');
+        }
+    });
+}
+
+/**
+ * Mark all notifications as read
+ */
+function markAllNotificationsRead() {
+    if (confirm('Mark all notifications as read?')) {
+        $.ajax({
+            url: window.APP_URL + 'api/notifications.php',
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'mark_all_read'
+            },
+            success: function(response) {
+                if (response.success) {
+                    updateNotificationBell();
+                    showToast('All notifications marked as read', 'success');
+                    if (window.location.pathname.includes('notifications')) {
+                        location.reload();
+                    }
+                }
+            },
+            error: function() {
+                showToast('Error marking notifications as read', 'danger');
+            }
+        });
+    }
+}
+
+/**
+ * Delete notification
+ */
+function deleteNotification(notificationId) {
+    if (confirm('Delete this notification?')) {
+        $.ajax({
+            url: window.APP_URL + 'api/notifications.php',
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'delete',
+                notification_id: notificationId
+            },
+            success: function(response) {
+                if (response.success) {
+                    updateNotificationBell();
+                    showToast('Notification deleted', 'success');
+                    // Remove from DOM if in list view
+                    $('#notification-' + notificationId).fadeOut(function() {
+                        $(this).remove();
+                    });
+                }
+            },
+            error: function() {
+                showToast('Error deleting notification', 'danger');
+            }
+        });
+    }
+}
+
+/**
+ * Update notification bell count
+ */
+function updateNotificationBell() {
+    $.ajax({
+        url: window.APP_URL + 'api/notifications.php',
+        method: 'POST',
+        dataType: 'json',
+        data: {
+            action: 'get_unread_count'
+        },
+        success: function(response) {
+            if (response.success) {
+                const count = response.unread_count;
+                const badge = $('#notificationBell .badge');
+                
+                if (count > 0) {
+                    if (badge.length === 0) {
+                        $('#notificationBell').append(
+                            '<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">' +
+                            (count > 99 ? '99+' : count) +
+                            '</span>'
+                        );
+                    } else {
+                        badge.text(count > 99 ? '99+' : count);
+                    }
+                } else {
+                    badge.remove();
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Load unread notifications in dropdown
+ */
+function loadUnreadNotifications() {
+    $.ajax({
+        url: window.APP_URL + 'api/notifications.php',
+        method: 'POST',
+        dataType: 'json',
+        data: {
+            action: 'get_unread',
+            limit: 5
+        },
+        success: function(response) {
+            if (response.success && response.notifications) {
+                // Update dropdown if it exists
+                const dropdown = $('.notification-dropdown');
+                if (dropdown.length > 0) {
+                    // Implementation would rebuild the dropdown UI
+                    location.reload(); // Simple refresh for now
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Initialize notification system
+ * Call on page load if needed
+ */
+function initNotificationSystem() {
+    // Set APP_URL if not already set
+    if (typeof window.APP_URL === 'undefined') {
+        window.APP_URL = document.querySelector('a[href*="APP_URL"]')?.href || '/';
+    }
+    
+    // Update bell on page load
+    updateNotificationBell();
+    
+    // Refresh notifications every 30 seconds
+    setInterval(updateNotificationBell, 30000);
+}
+
+// Initialize on document ready
+$(document).ready(function() {
+    if ($('#notificationBell').length > 0) {
+        initNotificationSystem();
+    }
+});
+
+
