@@ -1,0 +1,71 @@
+<div class="email-header primary">
+    <h1>⏰ Class Reminder</h1>
+    <p class="subtitle">Don't miss your upcoming class</p>
+</div>
+
+<div class="email-content">
+    <p>Dear {{MEMBER_NAME}},</p>
+    
+    <p>This is a friendly reminder about your upcoming class at Level Up Fitness!</p>
+    
+    <div class="info-box primary">
+        <div class="info-row">
+            <span class="info-label">Class Name:</span>
+            <span class="info-value">{{CLASS_NAME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Trainer:</span>
+            <span class="info-value">{{TRAINER_NAME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Date:</span>
+            <span class="info-value">{{CLASS_DATE}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Time:</span>
+            <span class="info-value">{{START_TIME}} - {{END_TIME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Location:</span>
+            <span class="info-value">{{CLASS_LOCATION}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Capacity:</span>
+            <span class="info-value">{{CURRENT_PARTICIPANTS}}/{{MAX_CAPACITY}} registered</span>
+        </div>
+    </div>
+    
+    <div class="highlight" style="padding: 15px; margin: 20px 0; border-radius: 4px; border-left: 4px solid #27ae60;">
+        <p><strong>✓ You're registered!</strong> Please arrive 10 minutes early to prepare.</p>
+    </div>
+    
+    {{#if CLASS_DESCRIPTION}}
+    <p><strong>Class Description:</strong></p>
+    <p>{{CLASS_DESCRIPTION}}</p>
+    {{/if}}
+    
+    {{#if WHAT_TO_BRING}}
+    <p><strong>What to Bring:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        {{#each WHAT_TO_BRING}}
+        <li>{{this}}</li>
+        {{/each}}
+    </ul>
+    {{/if}}
+    
+    <p><strong>Can't Make It?</strong></p>
+    <p>Please cancel your registration as soon as possible to free up space for other members. <a href="{{CANCEL_URL}}">Cancel registration here</a>.</p>
+    
+    <p style="text-align: center; margin: 30px 0;">
+        <a href="{{DASHBOARD_URL}}" class="btn primary">View in Dashboard</a>
+    </p>
+</div>
+
+<div class="email-footer">
+    <p>&copy; 2026 Level Up Fitness. All rights reserved.</p>
+    <p>
+        <a href="{{DASHBOARD_URL}}">Dashboard</a> | 
+        <a href="{{SUPPORT_URL}}">Support</a> | 
+        <a href="{{WEBSITE_URL}}">Website</a>
+    </p>
+</div>

@@ -4,6 +4,9 @@
  * Level Up Fitness - Gym Management System
  */
 
+// Load email notification functions
+require_once dirname(__FILE__) . '/email-notifications.php';
+
 /**
  * Generate unique IDs with prefix
  */
@@ -477,100 +480,44 @@ function generatePagination($currentPage, $totalPages, $baseUrl = '') {
  * Send email notification
  * Supports both PHP mail() and SMTP configuration
  */
-function sendEmailNotification($toEmail, $subject, $messageBody, $type = 'text') {
+function sendEmailNotification($toEmail, $subject, $messageBody, $type = 'html') {
     // Validate email
     if (!isValidEmail($toEmail)) {
         error_log('Invalid email address: ' . $toEmail);
         return false;
     }
     
-    // Prepare headers
-    $headers = "MIME-Version: 1.0\r\n";
-    if ($type === 'html') {
-        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-    } else {
-        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    }
-    $headers .= "From: " . (defined('FROM_EMAIL') ? FROM_EMAIL : 'noreply@levelupfitness.local') . "\r\n";
-    $headers .= "Reply-To: " . (defined('SUPPORT_EMAIL') ? SUPPORT_EMAIL : 'support@levelupfitness.local') . "\r\n";
-    $headers .= "X-Mailer: Level Up Fitness System\r\n";
+    // Load Mailtrap service
+    require_once dirname(__FILE__) . '/../config/MailtrapService.php';
     
     // Sanitize subject
     $subject = substr($subject, 0, 100);
     
     try {
-        // Use PHP mail function (configured in php.ini or via SMTP relay)
-        $result = mail($toEmail, $subject, $messageBody, $headers);
-        
-        if ($result) {
-            // Log successful email send
-            error_log('Email sent to ' . $toEmail . ' with subject: ' . $subject);
+        // Use Mailtrap API for email sending
+        if ($type === 'html') {
+            $result = MailtrapService::send($toEmail, $subject, $messageBody);
         } else {
-            error_log('Failed to send email to ' . $toEmail);
+            // For plain text emails, send as both HTML and text
+            $result = MailtrapService::send(
+                $toEmail, 
+                $subject, 
+                '<pre>' . htmlspecialchars($messageBody, ENT_QUOTES, 'UTF-8') . '</pre>',
+                $messageBody
+            );
         }
         
-        return $result;
+        if ($result['success']) {
+            error_log('Email sent via Mailtrap to ' . $toEmail . ' with subject: ' . $subject);
+            return true;
+        } else {
+            error_log('Failed to send email via Mailtrap to ' . $toEmail . ': ' . $result['message']);
+            return false;
+        }
     } catch (Exception $e) {
-        error_log('Exception sending email: ' . $e->getMessage());
+        error_log('Exception sending email via Mailtrap: ' . $e->getMessage());
         return false;
     }
-}
-
-/**
- * Send payment confirmation email
- */
-function sendPaymentConfirmationEmail($email, $paymentId, $amount, $paymentMethod, $status) {
-    $subject = 'Level Up Fitness - Payment Confirmation (' . $paymentId . ')';
-    
-    $messageBody = "
-Hello,
-
-Thank you for your payment to Level Up Fitness!
-
---- PAYMENT CONFIRMATION ---
-Payment ID: " . $paymentId . "
-Amount: " . formatCurrency($amount) . "
-Payment Method: " . htmlspecialchars($paymentMethod) . "
-Status: " . $status . "
-Date: " . date('F j, Y H:i A') . "
-
-Your payment has been received and processed successfully.
-
-For any inquiries, please contact our support team.
-
-Best regards,
-Level Up Fitness Gym Management System
-    ";
-    
-    return sendEmailNotification($email, $subject, $messageBody, 'text');
-}
-
-/**
- * Send reservation confirmation email
- */
-function sendReservationConfirmationEmail($email, $reservationId, $equipmentName, $reservationDate, $startTime, $endTime) {
-    $subject = 'Level Up Fitness - Reservation Confirmed (' . $reservationId . ')';
-    
-    $messageBody = "
-Hello,
-
-Your equipment reservation has been confirmed!
-
---- RESERVATION DETAILS ---
-Reservation ID: " . $reservationId . "
-Equipment: " . htmlspecialchars($equipmentName) . "
-Date: " . formatDate($reservationDate) . "
-Time: " . $startTime . " - " . $endTime . "
-
-Please arrive 5 minutes before your reservation time.
-
-For cancellations or changes, contact the gym or reply to this email.
-
-Best regards,
-Level Up Fitness Gym Management System
-    ";
-    
-    return sendEmailNotification($email, $subject, $messageBody, 'text');
 }
 
 /**
@@ -897,59 +844,46 @@ function deleteReadNotifications($userId) {
 
 /**
  * Send Payment Notification
- * Enhanced with in-app notification
+ * Enhanced with in-app notification and Mailtrap emails
  */
-function sendPaymentNotification($userId, $email, $paymentId, $amount, $paymentMethod, $status) {
+function sendPaymentNotification($userId, $email, $paymentId, $amount, $paymentMethod, $status, $additionalData = []) {
+    
     $title = 'Payment Confirmation';
-    $message = 'Your payment of ' . formatCurrency($amount) . ' has been ' . strtolower($status);
+    $message = 'Your payment of ₱' . number_format($amount, 2) . ' has been ' . strtolower($status);
     
-    $emailBody = "
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        .email-container { max-width: 600px; margin: 0 auto; }
-        .header { background: #4A90E2; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; }
-        .details { background: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 4px solid #4A90E2; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
-    </style>
-</head>
-<body>
-    <div class='email-container'>
-        <div class='header'>
-            <h2>Payment Confirmation</h2>
-        </div>
-        <div class='content'>
-            <p>Hello,</p>
-            <p>Thank you for your payment to Level Up Fitness!</p>
-            <div class='details'>
-                <strong>Payment ID:</strong> " . htmlspecialchars($paymentId) . "<br>
-                <strong>Amount:</strong> " . formatCurrency($amount) . "<br>
-                <strong>Payment Method:</strong> " . htmlspecialchars($paymentMethod) . "<br>
-                <strong>Status:</strong> <span style='color: #27ae60; font-weight: bold;'>" . htmlspecialchars($status) . "</span>
-            </div>
-            <p>If you have any questions about this payment, please contact our support team.</p>
-            <p>Best regards,<br><strong>Level Up Fitness</strong></p>
-        </div>
-        <div class='footer'>
-            <p>© 2026 Level Up Fitness. All rights reserved.</p>
-        </div>
-    </div>
-</body>
-</html>
-    ";
+    // Prepare payment data for email
+    $paymentData = [
+        'payment_id' => $paymentId,
+        'amount' => $amount,
+        'payment_method' => $paymentMethod,
+        'status' => $status,
+        'payment_date' => date('M d, Y H:i A'),
+    ];
     
+    // Merge with additional data
+    if (!empty($additionalData)) {
+        $paymentData = array_merge($paymentData, $additionalData);
+    }
+    
+    // Get user name from database if not provided
+    if (empty($paymentData['member_name'])) {
+        global $pdo;
+        $stmt = $pdo->prepare("SELECT full_name FROM users WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
+        $paymentData['member_name'] = $user['full_name'] ?? 'Member';
+    }
+    
+    // Send email using Mailtrap with template
+    $htmlEmail = sendPaymentConfirmationEmail($email, $paymentData['member_name'], $paymentData);
+    
+    // Create in-app notification
     return sendNotification(
         $userId,
         'payment',
         $title,
         $message,
-        [
-            'recipient_email' => $email,
-            'subject' => $title,
-            'body' => $emailBody
-        ],
+        [],
         [
             'icon' => 'credit-card',
             'color' => 'success',
@@ -963,60 +897,52 @@ function sendPaymentNotification($userId, $email, $paymentId, $amount, $paymentM
 
 /**
  * Send Reservation Notification
- * Enhanced with in-app notification
+ * Enhanced with in-app notification and Mailtrap emails
  */
-function sendReservationNotification($userId, $email, $reservationId, $equipmentName, $reservationDate, $startTime, $endTime) {
+function sendReservationNotification($userId, $email, $reservationId, $equipmentName, $reservationDate, $startTime, $endTime, $additionalData = []) {
+    
     $title = 'Reservation Confirmed';
     $message = 'Your reservation for ' . $equipmentName . ' on ' . formatDate($reservationDate) . ' is confirmed.';
     
-    $emailBody = "
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        .email-container { max-width: 600px; margin: 0 auto; }
-        .header { background: #27ae60; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; }
-        .details { background: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 4px solid #27ae60; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
-    </style>
-</head>
-<body>
-    <div class='email-container'>
-        <div class='header'>
-            <h2>Reservation Confirmed</h2>
-        </div>
-        <div class='content'>
-            <p>Hello,</p>
-            <p>Your equipment reservation has been confirmed!</p>
-            <div class='details'>
-                <strong>Reservation ID:</strong> " . htmlspecialchars($reservationId) . "<br>
-                <strong>Equipment:</strong> " . htmlspecialchars($equipmentName) . "<br>
-                <strong>Date:</strong> " . formatDate($reservationDate) . "<br>
-                <strong>Time:</strong> " . htmlspecialchars($startTime) . " - " . htmlspecialchars($endTime) . "
-            </div>
-            <p><strong>Please arrive 5 minutes before your reservation time.</strong></p>
-            <p>For cancellations or changes, contact the gym or reply to this email.</p>
-            <p>Best regards,<br><strong>Level Up Fitness</strong></p>
-        </div>
-        <div class='footer'>
-            <p>© 2026 Level Up Fitness. All rights reserved.</p>
-        </div>
-    </div>
-</body>
-</html>
-    ";
+    // Prepare reservation data for email
+    $reservationData = [
+        'reservation_id' => $reservationId,
+        'equipment_name' => $equipmentName,
+        'reservation_date' => formatDate($reservationDate),
+        'start_time' => $startTime,
+        'end_time' => $endTime,
+    ];
     
+    // Calculate duration
+    $startDateTime = strtotime($reservationDate . ' ' . $startTime);
+    $endDateTime = strtotime($reservationDate . ' ' . $endTime);
+    $duration = round(($endDateTime - $startDateTime) / 60);
+    $reservationData['duration'] = $duration;
+    
+    // Merge with additional data
+    if (!empty($additionalData)) {
+        $reservationData = array_merge($reservationData, $additionalData);
+    }
+    
+    // Get user name from database if not provided
+    if (empty($reservationData['member_name'])) {
+        global $pdo;
+        $stmt = $pdo->prepare("SELECT full_name FROM users WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
+        $reservationData['member_name'] = $user['full_name'] ?? 'Member';
+    }
+    
+    // Send email using Mailtrap with template
+    $htmlEmail = sendReservationConfirmationEmail($email, $reservationData['member_name'], $reservationData);
+    
+    // Create in-app notification
     return sendNotification(
         $userId,
         'reservation',
         $title,
         $message,
-        [
-            'recipient_email' => $email,
-            'subject' => $title,
-            'body' => $emailBody
-        ],
+        [],
         [
             'icon' => 'calendar-check',
             'color' => 'success',

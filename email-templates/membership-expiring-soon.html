@@ -1,0 +1,57 @@
+<div class="email-header warning">
+    <h1>⏰ Membership Expiring Soon</h1>
+    <p class="subtitle">Your membership will expire soon</p>
+</div>
+
+<div class="email-content">
+    <p>Dear {{MEMBER_NAME}},</p>
+    
+    <p>Your Level Up Fitness membership is expiring soon. We'd love for you to continue your fitness journey with us!</p>
+    
+    <div class="info-box warning">
+        <div class="info-row">
+            <span class="info-label">Membership Type:</span>
+            <span class="info-value">{{MEMBERSHIP_TYPE}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Expiration Date:</span>
+            <span class="info-value"><strong>{{EXPIRATION_DATE}}</strong></span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Days Remaining:</span>
+            <span class="info-value"><strong>{{DAYS_REMAINING}}</strong></span>
+        </div>
+    </div>
+    
+    <div class="highlight" style="padding: 15px; margin: 20px 0; border-radius: 4px; border-left: 4px solid #f39c12;">
+        <p><strong>📢 Renew Now!</strong> Don't let your fitness streak end. Renew your membership before {{EXPIRATION_DATE}} to maintain continuous access.</p>
+    </div>
+    
+    <p><strong>Available Renewal Options:</strong></p>
+    <div style="margin: 15px 0;">
+        {{#each MEMBERSHIP_PLANS}}
+        <div style="background: #f9f9f9; padding: 12px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #4A90E2;">
+            <strong>{{this.NAME}}</strong> - ₱{{this.PRICE}}<br>
+            <small>{{this.DURATION}}</small>
+        </div>
+        {{/each}}
+    </div>
+    
+    <p style="text-align: center; margin: 30px 0;">
+        <a href="{{RENEWAL_URL}}" class="btn warning" style="background-color: #f39c12;">Renew Membership</a>
+    </p>
+    
+    <div class="divider"></div>
+    
+    <p><strong>Need a Different Plan?</strong></p>
+    <p>We offer flexible membership options tailored to your fitness goals. Contact our team at <a href="mailto:support@levelupfitness.local">support@levelupfitness.local</a> to discuss options.</p>
+</div>
+
+<div class="email-footer">
+    <p>&copy; 2026 Level Up Fitness. All rights reserved.</p>
+    <p>
+        <a href="{{DASHBOARD_URL}}">Dashboard</a> | 
+        <a href="{{SUPPORT_URL}}">Support</a> | 
+        <a href="{{WEBSITE_URL}}">Website</a>
+    </p>
+</div>

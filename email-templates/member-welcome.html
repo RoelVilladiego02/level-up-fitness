@@ -1,0 +1,72 @@
+<div class="email-header primary">
+    <h1>👋 Welcome to Level Up Fitness!</h1>
+    <p class="subtitle">Your account has been created</p>
+</div>
+
+<div class="email-content">
+    <p>Dear {{MEMBER_NAME}},</p>
+    
+    <p>Welcome to <strong>Level Up Fitness</strong>! We're excited to have you join our fitness community. Your account has been created and is ready to use.</p>
+    
+    <div class="info-box primary">
+        <div class="info-row">
+            <span class="info-label">Username:</span>
+            <span class="info-value">{{USERNAME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Email:</span>
+            <span class="info-value">{{EMAIL}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Member ID:</span>
+            <span class="info-value">{{MEMBER_ID}}</span>
+        </div>
+        {{#if MEMBERSHIP_TYPE}}
+        <div class="info-row">
+            <span class="info-label">Membership Type:</span>
+            <span class="info-value">{{MEMBERSHIP_TYPE}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Valid Until:</span>
+            <span class="info-value">{{MEMBERSHIP_EXPIRY}}</span>
+        </div>
+        {{/if}}
+    </div>
+    
+    <div class="divider"></div>
+    
+    <p><strong>Getting Started:</strong></p>
+    <ul style="margin: 15px 0; padding-left: 20px;">
+        <li>Log in to your <a href="{{LOGIN_URL}}">member dashboard</a></li>
+        <li>Complete your profile information</li>
+        <li>Browse available equipment and classes</li>
+        <li>Make your first equipment reservation</li>
+        <li>Connect with our trainers</li>
+    </ul>
+    
+    <p>
+        <a href="{{DASHBOARD_URL}}" class="btn primary">Access Your Dashboard</a>
+    </p>
+    
+    <div class="divider"></div>
+    
+    <p><strong>Need Help?</strong></p>
+    <p>Our support team is here to help! Contact us at <a href="mailto:support@levelupfitness.local">support@levelupfitness.local</a> or visit our <a href="{{SUPPORT_URL}}">support center</a>.</p>
+    
+    {{#if TRAINER_ASSIGNED}}
+    <div class="highlight" style="padding: 15px; margin: 20px 0; border-radius: 4px; border-left: 4px solid #f39c12;">
+        <p><strong>👨‍🏫 Your Assigned Trainer:</strong><br>
+        {{TRAINER_NAME}}<br>
+        Contact: <a href="mailto:{{TRAINER_EMAIL}}">{{TRAINER_EMAIL}}</a></p>
+    </div>
+    {{/if}}
+</div>
+
+<div class="email-footer">
+    <p>&copy; 2026 Level Up Fitness. All rights reserved.</p>
+    <p>
+        <a href="{{DASHBOARD_URL}}">Dashboard</a> | 
+        <a href="{{SUPPORT_URL}}">Support</a> | 
+        <a href="{{WEBSITE_URL}}">Website</a>
+    </p>
+</div>

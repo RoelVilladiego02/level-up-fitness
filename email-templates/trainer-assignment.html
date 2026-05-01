@@ -1,0 +1,74 @@
+<div class="email-header primary">
+    <h1>👨‍🏫 Trainer Assignment</h1>
+    <p class="subtitle">You've been assigned a new trainer</p>
+</div>
+
+<div class="email-content">
+    <p>Dear {{MEMBER_NAME}},</p>
+    
+    <p>Great news! You have been assigned a trainer at Level Up Fitness who will help guide your fitness journey.</p>
+    
+    <div class="info-box primary">
+        <div class="info-row">
+            <span class="info-label">Trainer Name:</span>
+            <span class="info-value">{{TRAINER_NAME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Specialization:</span>
+            <span class="info-value">{{TRAINER_SPECIALIZATION}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Email:</span>
+            <span class="info-value"><a href="mailto:{{TRAINER_EMAIL}}">{{TRAINER_EMAIL}}</a></span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Phone:</span>
+            <span class="info-value">{{TRAINER_PHONE}}</span>
+        </div>
+        {{#if TRAINER_BIO}}
+        <div class="info-row">
+            <span class="info-label">Bio:</span>
+            <span class="info-value">{{TRAINER_BIO}}</span>
+        </div>
+        {{/if}}
+    </div>
+    
+    <div class="highlight" style="padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <p><strong>What's Next?</strong></p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Contact your trainer to schedule your first session</li>
+            <li>Discuss your fitness goals and preferences</li>
+            <li>Get personalized workout recommendations</li>
+        </ul>
+    </div>
+    
+    <p>You can reach out to your trainer directly at <a href="mailto:{{TRAINER_EMAIL}}">{{TRAINER_EMAIL}}</a> to introduce yourself and schedule your first session.</p>
+    
+    {{#if FIRST_SESSION_DETAILS}}
+    <div class="divider"></div>
+    <p><strong>Your First Session:</strong></p>
+    <div class="info-box success">
+        <div class="info-row">
+            <span class="info-label">Date:</span>
+            <span class="info-value">{{SESSION_DATE}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Time:</span>
+            <span class="info-value">{{SESSION_TIME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Location:</span>
+            <span class="info-value">{{SESSION_LOCATION}}</span>
+        </div>
+    </div>
+    {{/if}}
+</div>
+
+<div class="email-footer">
+    <p>&copy; 2026 Level Up Fitness. All rights reserved.</p>
+    <p>
+        <a href="{{DASHBOARD_URL}}">Dashboard</a> | 
+        <a href="{{SUPPORT_URL}}">Support</a> | 
+        <a href="{{WEBSITE_URL}}">Website</a>
+    </p>
+</div>

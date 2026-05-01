@@ -1,0 +1,68 @@
+<div class="email-header primary">
+    <h1>💳 Payment Received</h1>
+    <p class="subtitle">Your payment has been successfully recorded</p>
+</div>
+
+<div class="email-content">
+    <p>Dear {{MEMBER_NAME}},</p>
+    
+    <p>Thank you for your payment to <strong>Level Up Fitness</strong>! We have received and recorded your payment in our system.</p>
+    
+    <div class="info-box success">
+        <div class="info-row">
+            <span class="info-label">Payment ID:</span>
+            <span class="info-value">{{PAYMENT_ID}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Amount:</span>
+            <span class="info-value">₱{{AMOUNT}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Payment Method:</span>
+            <span class="info-value">{{PAYMENT_METHOD}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="info-value"><strong>{{STATUS}}</strong></span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Date & Time:</span>
+            <span class="info-value">{{PAYMENT_DATE}}</span>
+        </div>
+    </div>
+    
+    {{#if MEMBERSHIP_INFO}}
+    <div class="divider"></div>
+    
+    <p><strong>Membership Information:</strong></p>
+    <div class="info-box">
+        <div class="info-row">
+            <span class="info-label">Membership Type:</span>
+            <span class="info-value">{{MEMBERSHIP_TYPE}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Valid From:</span>
+            <span class="info-value">{{MEMBERSHIP_START}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Valid Until:</span>
+            <span class="info-value">{{MEMBERSHIP_END}}</span>
+        </div>
+    </div>
+    {{/if}}
+    
+    <div class="divider"></div>
+    
+    <p>You can view your payment history and receipt in your <a href="{{DASHBOARD_URL}}">member dashboard</a>.</p>
+    
+    <p>If you have any questions about your payment, please contact our support team at <a href="mailto:support@levelupfitness.local">support@levelupfitness.local</a>.</p>
+</div>
+
+<div class="email-footer">
+    <p>&copy; 2026 Level Up Fitness. All rights reserved.</p>
+    <p>
+        <a href="{{DASHBOARD_URL}}">Dashboard</a> | 
+        <a href="{{SUPPORT_URL}}">Support</a> | 
+        <a href="{{WEBSITE_URL}}">Website</a>
+    </p>
+</div>

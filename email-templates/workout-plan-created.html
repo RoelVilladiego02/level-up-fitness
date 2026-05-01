@@ -1,0 +1,63 @@
+<div class="email-header success">
+    <h1>📋 Workout Plan Created</h1>
+    <p class="subtitle">Your personalized workout plan is ready</p>
+</div>
+
+<div class="email-content">
+    <p>Dear {{MEMBER_NAME}},</p>
+    
+    <p>Your trainer, {{TRAINER_NAME}}, has created a personalized workout plan for you! Log in to your dashboard to view the full details and start your training.</p>
+    
+    <div class="info-box success">
+        <div class="info-row">
+            <span class="info-label">Plan Name:</span>
+            <span class="info-value">{{PLAN_NAME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Duration:</span>
+            <span class="info-value">{{PLAN_DURATION}} weeks</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Focus Area:</span>
+            <span class="info-value">{{FOCUS_AREA}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Difficulty Level:</span>
+            <span class="info-value">{{DIFFICULTY_LEVEL}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Sessions Per Week:</span>
+            <span class="info-value">{{SESSIONS_PER_WEEK}}</span>
+        </div>
+    </div>
+    
+    <p><strong>Workout Plan Overview:</strong></p>
+    <div style="background: #f9f9f9; padding: 15px; border-radius: 4px; margin: 15px 0;">
+        <p>{{PLAN_DESCRIPTION}}</p>
+    </div>
+    
+    <p><strong>Your Plan Includes:</strong></p>
+    <ul style="margin: 15px 0; padding-left: 20px;">
+        {{#each PLAN_FEATURES}}
+        <li>{{this}}</li>
+        {{/each}}
+    </ul>
+    
+    <p style="text-align: center; margin: 30px 0;">
+        <a href="{{PLAN_URL}}" class="btn success">View Your Workout Plan</a>
+    </p>
+    
+    <div class="divider"></div>
+    
+    <p><strong>Questions About Your Plan?</strong></p>
+    <p>Contact your trainer {{TRAINER_NAME}} at <a href="mailto:{{TRAINER_EMAIL}}">{{TRAINER_EMAIL}}</a> or reach out to our support team at <a href="mailto:support@levelupfitness.local">support@levelupfitness.local</a>.</p>
+</div>
+
+<div class="email-footer">
+    <p>&copy; 2026 Level Up Fitness. All rights reserved.</p>
+    <p>
+        <a href="{{DASHBOARD_URL}}">Dashboard</a> | 
+        <a href="{{SUPPORT_URL}}">Support</a> | 
+        <a href="{{WEBSITE_URL}}">Website</a>
+    </p>
+</div>

@@ -1,0 +1,66 @@
+<div class="email-header danger">
+    <h1>❌ Reservation Cancelled</h1>
+    <p class="subtitle">Your reservation has been cancelled</p>
+</div>
+
+<div class="email-content">
+    <p>Dear {{MEMBER_NAME}},</p>
+    
+    <p>Your equipment reservation has been cancelled. Here are the details:</p>
+    
+    <div class="info-box danger">
+        <div class="info-row">
+            <span class="info-label">Reservation ID:</span>
+            <span class="info-value">{{RESERVATION_ID}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Equipment:</span>
+            <span class="info-value">{{EQUIPMENT_NAME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Original Date:</span>
+            <span class="info-value">{{RESERVATION_DATE}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Original Time:</span>
+            <span class="info-value">{{START_TIME}} - {{END_TIME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Cancellation Reason:</span>
+            <span class="info-value">{{CANCELLATION_REASON}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Cancelled On:</span>
+            <span class="info-value">{{CANCELLATION_DATE}}</span>
+        </div>
+    </div>
+    
+    {{#if REFUND_APPLICABLE}}
+    <div class="highlight" style="padding: 15px; margin: 20px 0; border-radius: 4px; border-left: 4px solid #27ae60;">
+        <p><strong>💰 Refund Processing:</strong></p>
+        <p>A refund of ₱{{REFUND_AMOUNT}} will be processed to your account within {{REFUND_DAYS}} business days.</p>
+    </div>
+    {{/if}}
+    
+    <div class="divider"></div>
+    
+    <p><strong>Want to Make Another Reservation?</strong></p>
+    <p>No worries! You can browse available time slots and make a new reservation anytime through your dashboard.</p>
+    
+    <p style="text-align: center; margin: 30px 0;">
+        <a href="{{RESERVATION_URL}}" class="btn primary">Make New Reservation</a>
+    </p>
+    
+    {{#if CANCELLATION_FEE}}
+    <p class="text-muted"><strong>Note:</strong> A cancellation fee of ₱{{CANCELLATION_FEE}} was applied per your membership terms.</p>
+    {{/if}}
+</div>
+
+<div class="email-footer">
+    <p>&copy; 2026 Level Up Fitness. All rights reserved.</p>
+    <p>
+        <a href="{{DASHBOARD_URL}}">Dashboard</a> | 
+        <a href="{{SUPPORT_URL}}">Support</a> | 
+        <a href="{{WEBSITE_URL}}">Website</a>
+    </p>
+</div>

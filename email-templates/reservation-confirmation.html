@@ -1,0 +1,63 @@
+<div class="email-header success">
+    <h1>✅ Reservation Confirmed</h1>
+    <p class="subtitle">Your equipment reservation is confirmed</p>
+</div>
+
+<div class="email-content">
+    <p>Dear {{MEMBER_NAME}},</p>
+    
+    <p>Your equipment reservation has been confirmed! Please make sure to arrive on time for your scheduled session.</p>
+    
+    <div class="info-box success">
+        <div class="info-row">
+            <span class="info-label">Reservation ID:</span>
+            <span class="info-value">{{RESERVATION_ID}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Equipment:</span>
+            <span class="info-value">{{EQUIPMENT_NAME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Date:</span>
+            <span class="info-value">{{RESERVATION_DATE}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Time:</span>
+            <span class="info-value">{{START_TIME}} - {{END_TIME}}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Duration:</span>
+            <span class="info-value">{{DURATION}} minutes</span>
+        </div>
+        {{#if TRAINER_ASSIGNED}}
+        <div class="info-row">
+            <span class="info-label">Assigned Trainer:</span>
+            <span class="info-value">{{TRAINER_NAME}}</span>
+        </div>
+        {{/if}}
+    </div>
+    
+    <div class="highlight" style="padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <p><strong>⏰ Important Reminder:</strong> Please arrive <strong>5 minutes before</strong> your reservation time. This helps us ensure smooth transitions between sessions.</p>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <p><strong>Location:</strong><br>
+    {{GYM_ADDRESS}}</p>
+    
+    {{#if CANCELLATION_DEADLINE}}
+    <p class="text-muted">To cancel this reservation, please do so before {{CANCELLATION_DEADLINE}} through your dashboard.</p>
+    {{/if}}
+    
+    <p>View your reservation in your <a href="{{DASHBOARD_URL}}" class="btn primary">Member Dashboard</a></p>
+</div>
+
+<div class="email-footer">
+    <p>&copy; 2026 Level Up Fitness. All rights reserved.</p>
+    <p>
+        <a href="{{DASHBOARD_URL}}">Dashboard</a> | 
+        <a href="{{SUPPORT_URL}}">Support</a> | 
+        <a href="{{WEBSITE_URL}}">Website</a>
+    </p>
+</div>
