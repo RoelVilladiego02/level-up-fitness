@@ -79,7 +79,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Log action
             logAction($_SESSION['user_id'], 'ADD_MEMBER', 'Members', 'Added member: ' . $formData['member_name']);
 
-            setMessage('Member added successfully! ID: ' . $memberId, 'success');
+            // Send welcome email
+            try {
+                // Get trainer info if assigned
+                $trainerInfo = ['trainer_name' => '', 'trainer_email' => ''];
+                if (!empty($formData['trainer_id'])) {
+                    $trainerStmt = $pdo->prepare("SELECT full_name, email FROM users WHERE user_id = (SELECT user_id FROM trainers WHERE trainer_id = ?)");
+                    $trainerStmt->execute([$formData['trainer_id']]);
+                    $trainer = $trainerStmt->fetch();
+                    if ($trainer) {
+                        $trainerInfo = ['trainer_name' => $trainer['full_name'], 'trainer_email' => $trainer['email']];
+                    }
+                }
+
+                sendMemberWelcomeEmail($formData['email'], $formData['member_name'], [
+                    'username' => strtolower(str_replace(' ', '.', $formData['member_name'])),
+                    'member_id' => $memberId,
+                    'membership_type' => $formData['membership_type'],
+                    'membership_expiry' => date('M d, Y', strtotime($joinDate . ' +1 year')),
+                    'trainer_name' => $trainerInfo['trainer_name'],
+                    'trainer_email' => $trainerInfo['trainer_email'],
+                ]);
+            } catch (Exception $e) {
+                error_log('Failed to send welcome email for member ' . $memberId . ': ' . $e->getMessage());
+                // Don't fail the member creation if email fails
+            }
+
+            setMessage('Member added successfully! ID: ' . $memberId . ' (Welcome email sent)', 'success');
             redirect(APP_URL . 'modules/members/');
         } catch (Exception $e) {
             setMessage('Error adding member: ' . $e->getMessage(), 'error');

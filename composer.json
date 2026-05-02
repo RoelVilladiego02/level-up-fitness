@@ -1,0 +1,14 @@
+{
+    "name": "level-up-fitness/gym-management",
+    "description": "Level Up Fitness - Gym Management System",
+    "type": "project",
+    "require": {
+        "php": ">=7.2",
+        "phpmailer/phpmailer": "^6.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "LevelUpFitness\\": "src/"
+        }
+    }
+}

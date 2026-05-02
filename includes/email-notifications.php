@@ -3,12 +3,12 @@
  * Email Notification Helper Functions
  * Level Up Fitness - Gym Management System
  * 
- * All email notification functions using Mailtrap API
- * These functions abstract the Mailtrap API and provide
+ * All email notification functions using SMTP
+ * These functions abstract the SMTP service and provide
  * easy-to-use interfaces for sending notifications
  */
 
-require_once dirname(__FILE__) . '/../config/MailtrapService.php';
+require_once dirname(__FILE__) . '/../config/SMTPMailService.php';
 
 /**
  * Render email template with variables
@@ -66,7 +66,7 @@ function sendPaymentConfirmationEmail($memberEmail, $memberName, $paymentData) {
     
     $htmlBody = renderEmailTemplate('payment-confirmation', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Payment Confirmation - Level Up Fitness',
         $htmlBody,
@@ -103,7 +103,7 @@ function sendReservationConfirmationEmail($memberEmail, $memberName, $reservatio
     
     $htmlBody = renderEmailTemplate('reservation-confirmation', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Reservation Confirmed - ' . $reservationData['equipment_name'],
         $htmlBody,
@@ -140,7 +140,7 @@ function sendMemberWelcomeEmail($memberEmail, $memberName, $memberData) {
     
     $htmlBody = renderEmailTemplate('member-welcome', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Welcome to Level Up Fitness!',
         $htmlBody,
@@ -174,7 +174,7 @@ function sendPasswordResetEmail($memberEmail, $memberName, $resetToken, $expirat
     
     $htmlBody = renderEmailTemplate('password-reset', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Password Reset Request - Level Up Fitness',
         $htmlBody,
@@ -209,7 +209,7 @@ function sendMembershipExpiringEmail($memberEmail, $memberName, $membershipData,
     
     $htmlBody = renderEmailTemplate('membership-expiring-soon', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Your Membership is Expiring Soon',
         $htmlBody,
@@ -245,7 +245,7 @@ function sendTrainerAssignmentEmail($memberEmail, $memberName, $trainerData) {
     
     $htmlBody = renderEmailTemplate('trainer-assignment', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Your Trainer Assignment - ' . $trainerData['trainer_name'],
         $htmlBody,
@@ -281,7 +281,7 @@ function sendWorkoutPlanEmail($memberEmail, $memberName, $planData) {
     
     $htmlBody = renderEmailTemplate('workout-plan-created', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Your Workout Plan is Ready - ' . $planData['plan_name'],
         $htmlBody,
@@ -318,7 +318,7 @@ function sendClassReminderEmail($memberEmail, $memberName, $classData) {
     
     $htmlBody = renderEmailTemplate('class-reminder', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Reminder: ' . $classData['class_name'] . ' on ' . $classData['class_date'],
         $htmlBody,
@@ -357,7 +357,7 @@ function sendReservationCancellationEmail($memberEmail, $memberName, $cancellati
     
     $htmlBody = renderEmailTemplate('reservation-cancelled', $variables);
     
-    return MailtrapService::send(
+    return SMTPMailService::send(
         $memberEmail,
         'Reservation Cancelled - ' . $cancellationData['equipment_name'],
         $htmlBody,
@@ -376,7 +376,7 @@ function sendReservationCancellationEmail($memberEmail, $memberName, $cancellati
  * @return array Result
  */
 function sendCustomEmail($recipient, $subject, $htmlBody, $textBody = '', $options = []) {
-    return MailtrapService::send($recipient, $subject, $htmlBody, $textBody, $options);
+    return SMTPMailService::send($recipient, $subject, $htmlBody, $textBody, $options);
 }
 
 /**
@@ -386,17 +386,17 @@ function sendCustomEmail($recipient, $subject, $htmlBody, $textBody = '', $optio
  * @return array Results
  */
 function sendBulkEmails($emails) {
-    return MailtrapService::sendBulk($emails);
+    return SMTPMailService::sendBulk($emails);
 }
 
 /**
- * Test Mailtrap configuration
+ * Test SMTP configuration
  * 
  * @param string $testEmail Email to send test to
  * @return array Result
  */
 function testMailtrapConfiguration($testEmail = '') {
-    return MailtrapService::test($testEmail);
+    return SMTPMailService::sendTest($testEmail);
 }
 
 ?>
