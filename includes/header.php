@@ -35,6 +35,10 @@ $_SESSION['last_activity'] = time();
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="<?php echo APP_URL; ?>assets/css/style.css" rel="stylesheet">
+    <script>
+        // Set APP_URL globally for JavaScript files
+        window.APP_URL = "<?php echo APP_URL; ?>";
+    </script>
 </head>
 <body>
     <!-- Notification Topbar -->

@@ -344,9 +344,18 @@ function loadUnreadNotifications() {
  * Call on page load if needed
  */
 function initNotificationSystem() {
-    // Set APP_URL if not already set
-    if (typeof window.APP_URL === 'undefined') {
-        window.APP_URL = document.querySelector('a[href*="APP_URL"]')?.href || '/';
+    // APP_URL should already be set in header.php
+    // If not set for some reason (e.g., in standalone JS context), try to infer it
+    if (typeof window.APP_URL === 'undefined' || !window.APP_URL) {
+        // Try to get the app base URL from the current page location
+        const path = window.location.pathname;
+        if (path.includes('/level-up-fitness/')) {
+            window.APP_URL = '/level-up-fitness/';
+        } else if (path.includes('/level-up-fitness')) {
+            window.APP_URL = '/level-up-fitness/';
+        } else {
+            window.APP_URL = '/';
+        }
     }
     
     // Update bell on page load

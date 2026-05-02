@@ -78,7 +78,7 @@ define('ITEMS_PER_PAGE', 10);
 define('MAX_FILE_SIZE', 5242880); // 5MB in bytes
 
 // Enable/Disable Features
-define('ENABLE_EMAIL_NOTIFICATIONS', false);
+define('ENABLE_EMAIL_NOTIFICATIONS', true);
 define('ENABLE_SMS_NOTIFICATIONS', false);
 define('ENABLE_PDF_EXPORT', false);
 

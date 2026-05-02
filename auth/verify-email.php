@@ -205,7 +205,7 @@ if (empty($token)) {
                 <p>• Check your email for a new verification link</p>
                 <p>• Ensure the link wasn't expired (links expire after 24 hours)</p>
                 <p>• Contact support if you continue to have issues</p>
-                <p><strong>Support Email:</strong> <?php echo htmlspecialchars(SUPPORT_EMAIL ?? 'support@levelupfitness.com'); ?></p>
+                <p><strong>Support Email:</strong> <?php echo htmlspecialchars(defined('SUPPORT_EMAIL') ? SUPPORT_EMAIL : 'support@levelupfitness.com'); ?></p>
             </div>
             <div class="btn-group">
                 <a href="<?php echo APP_URL; ?>auth/login.php" class="btn btn-primary">Back to Login</a>
