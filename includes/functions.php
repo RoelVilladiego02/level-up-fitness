@@ -362,14 +362,38 @@ function generateBSStatusBadge($status) {
 
 /**
  * Check if ID already exists in table
+ * 
+ * @param string $table Table name
+ * @param string $idValue ID value to check
+ * @param string|null $idColumn Optional column name (auto-detected if null)
+ * @return bool True if ID exists, false otherwise
  */
-function idExists($table, $idValue) {
+function idExists($table, $idValue, $idColumn = null) {
     global $pdo;
     try {
-        $stmt = $pdo->prepare("SELECT 1 FROM " . $table . " WHERE id = ? LIMIT 1");
+        // Map table names to their primary key column
+        $columnMap = [
+            'members'  => 'member_id',
+            'trainers' => 'trainer_id',
+            'payments' => 'payment_id',
+            'users' => 'user_id',
+            'reservations' => 'reservation_id',
+            'gyms' => 'gym_id',
+            'equipment' => 'equipment_id',
+            'classes' => 'class_id',
+            'sessions' => 'session_id',
+            'workouts' => 'workout_id',
+            'attendance' => 'attendance_id'
+        ];
+        
+        // Use provided column or map from table name, default to 'id' if not found
+        $col = $idColumn ?? $columnMap[$table] ?? 'id';
+        
+        $stmt = $pdo->prepare("SELECT 1 FROM `" . $table . "` WHERE `" . $col . "` = ? LIMIT 1");
         $stmt->execute([$idValue]);
         return $stmt->rowCount() > 0;
     } catch (Exception $e) {
+        error_log("Error checking ID existence in table '$table' column: " . $e->getMessage());
         return false;
     }
 }
@@ -968,13 +992,14 @@ function generateVerificationToken($userId, $expirationHours = 24) {
         // Generate a secure random token
         $token = bin2hex(random_bytes(16)); // 32 character hex string
         
-        // Calculate expiration time
-        $expiresAt = date('Y-m-d H:i:s', strtotime("+$expirationHours hours"));
+        // Calculate expiration time using UTC timezone to match MySQL UTC_TIMESTAMP()
+        // Use gmdate to ensure UTC time, not server local time
+        $expiresAt = gmdate('Y-m-d H:i:s', time() + ($expirationHours * 3600));
         
         // Store token in database
         $stmt = $pdo->prepare("
             INSERT INTO verification_tokens (user_id, token, token_type, expires_at, created_at)
-            VALUES (?, ?, 'email_verification', ?, NOW())
+            VALUES (?, ?, 'email_verification', ?, UTC_TIMESTAMP())
         ");
         
         if ($stmt->execute([$userId, $token, $expiresAt])) {
@@ -998,12 +1023,14 @@ function validateVerificationToken($token) {
     global $pdo;
     
     try {
+        // Use UTC_TIMESTAMP() to match gmdate() used in generateVerificationToken()
+        // This prevents timezone mismatch issues where tokens appear to expire immediately
         $stmt = $pdo->prepare("
             SELECT user_id FROM verification_tokens
             WHERE token = ? 
             AND token_type = 'email_verification'
             AND used_at IS NULL
-            AND expires_at > NOW()
+            AND expires_at > UTC_TIMESTAMP()
             LIMIT 1
         ");
         
@@ -1033,12 +1060,13 @@ function activateUserByToken($token) {
         $pdo->beginTransaction();
         
         // Get the user ID from the token
+        // Use UTC_TIMESTAMP() to match gmdate() used in generateVerificationToken()
         $stmt = $pdo->prepare("
             SELECT user_id FROM verification_tokens
             WHERE token = ? 
             AND token_type = 'email_verification'
             AND used_at IS NULL
-            AND expires_at > NOW()
+            AND expires_at > UTC_TIMESTAMP()
             LIMIT 1
         ");
         
@@ -1055,14 +1083,26 @@ function activateUserByToken($token) {
         
         $userId = (int)$result['user_id'];
         
-        // Update user to mark as verified and active
+        // Update user to mark as verified
         $updateStmt = $pdo->prepare("
             UPDATE users 
-            SET is_verified = 1, status = 'Active'
-            WHERE id = ?
+            SET is_verified = 1
+            WHERE user_id = ?
         ");
         
         if (!$updateStmt->execute([$userId])) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        // Update member status to Active
+        $memberStmt = $pdo->prepare("
+            UPDATE members
+            SET status = 'Active'
+            WHERE user_id = ?
+        ");
+        
+        if (!$memberStmt->execute([$userId])) {
             $pdo->rollBack();
             return false;
         }
@@ -1082,20 +1122,22 @@ function activateUserByToken($token) {
         // Commit transaction
         $pdo->commit();
         
-        // Log activity
-        logActivity(
-            $userId,
-            'account_verification',
-            'User verified email and activated account',
-            [],
-            [
-                'icon' => 'check-circle',
-                'color' => 'success',
-                'entity_type' => 'user',
-                'entity_id' => $userId,
-                'priority' => 'high'
-            ]
-        );
+        // Log activity (if function exists)
+        if (function_exists('logActivity')) {
+            logActivity(
+                $userId,
+                'account_verification',
+                'User verified email and activated account',
+                [],
+                [
+                    'icon' => 'check-circle',
+                    'color' => 'success',
+                    'entity_type' => 'user',
+                    'entity_id' => $userId,
+                    'priority' => 'high'
+                ]
+            );
+        }
         
         return true;
     } catch (Exception $e) {

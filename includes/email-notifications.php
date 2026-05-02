@@ -16,21 +16,33 @@ require_once dirname(__FILE__) . '/../config/SMTPMailService.php';
  * @param string $templateName Name of template file (without .html)
  * @param array $variables Template variables to replace
  * @return string Rendered HTML
+ * @throws RuntimeException If template file is not found
  */
 function renderEmailTemplate($templateName, $variables = []) {
     $templateFile = EMAIL_TEMPLATE_DIR . $templateName . '.html';
     
     if (!file_exists($templateFile)) {
-        error_log("Email template not found: $templateFile");
-        return '';
+        $error = "Email template not found: $templateFile";
+        error_log($error);
+        throw new RuntimeException($error);
     }
     
     $html = file_get_contents($templateFile);
     
     // Replace all {{VARIABLE}} with actual values
+    // NOTE: Do NOT htmlspecialchars() the value if it's already a URL or contains HTML entities
     foreach ($variables as $key => $value) {
         $placeholder = '{{' . strtoupper($key) . '}}';
-        $html = str_replace($placeholder, htmlspecialchars($value, ENT_QUOTES, 'UTF-8'), $html);
+        
+        // For URLs, insert as-is to preserve query parameters (& should not become &amp;)
+        // For other values, escape for HTML safety
+        if (strpos($key, 'url') !== false || strpos($key, 'link') !== false) {
+            // URLs: don't escape, they should already be properly encoded
+            $html = str_replace($placeholder, $value, $html);
+        } else {
+            // Other values: escape for HTML safety
+            $html = str_replace($placeholder, htmlspecialchars($value, ENT_QUOTES, 'UTF-8'), $html);
+        }
     }
     
     // Remove any unreplaced variables

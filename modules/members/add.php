@@ -89,11 +89,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Get trainer info if assigned
                     $trainerInfo = ['trainer_name' => '', 'trainer_email' => ''];
                     if (!empty($formData['trainer_id'])) {
-                        $trainerStmt = $pdo->prepare("SELECT full_name, email FROM users WHERE user_id = (SELECT user_id FROM trainers WHERE trainer_id = ?)");
+                        // Query trainers table directly for trainer_name (not users.full_name)
+                        $trainerStmt = $pdo->prepare("SELECT trainer_name FROM trainers WHERE trainer_id = ?");
                         $trainerStmt->execute([$formData['trainer_id']]);
                         $trainer = $trainerStmt->fetch();
                         if ($trainer) {
-                            $trainerInfo = ['trainer_name' => $trainer['full_name'], 'trainer_email' => $trainer['email']];
+                            $trainerInfo = ['trainer_name' => $trainer['trainer_name']];
                         }
                     }
 
@@ -103,15 +104,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'trainer_name' => $trainerInfo['trainer_name'],
                     ];
                     
-                    sendEmailVerificationEmail(
-                        $formData['email'], 
-                        $formData['member_name'], 
-                        $verificationToken, 
-                        $memberData,
-                        24
-                    );
-                    
-                    setMessage('Member added successfully! ID: ' . $memberId . ' (Verification email sent - member must verify email to activate account)', 'success');
+                    // Check if email notifications are enabled before sending
+                    if (defined('ENABLE_EMAIL_NOTIFICATIONS') && ENABLE_EMAIL_NOTIFICATIONS) {
+                        sendEmailVerificationEmail(
+                            $formData['email'], 
+                            $formData['member_name'], 
+                            $verificationToken, 
+                            $memberData,
+                            24
+                        );
+                        
+                        setMessage('Member added successfully! ID: ' . $memberId . ' (Verification email sent - member must verify email to activate account)', 'success');
+                    } else {
+                        setMessage('Member added successfully! ID: ' . $memberId . ' (Email notifications are disabled - member must be verified manually)', 'warning');
+                    }
                 } else {
                     setMessage('Member added successfully! ID: ' . $memberId . ' (Warning: Could not generate verification token)', 'warning');
                 }

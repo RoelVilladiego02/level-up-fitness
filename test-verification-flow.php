@@ -20,7 +20,7 @@ try {
     $password = hashPassword('defaultPass123');
     $userStmt = $pdo->prepare("INSERT INTO users (email, password, user_type) VALUES (?, ?, ?)");
     $userStmt->execute([$testEmail, $password, 'member']);
-    $userId = $pdo->lastInsertId();
+    $userId = (int)$pdo->lastInsertId();
     echo "  ✓ User created (ID: $userId, Email: $testEmail)\n";
 
     $memberId = generateUniqueID(MEMBER_ID_PREFIX, 'members');
@@ -78,7 +78,30 @@ try {
 
     // Step 5: Validate and activate token
     echo "\nSTEP 5: Validating token...\n";
+    echo "  Token to validate: $verificationToken\n";
+    
+    // Check if token exists in DB
+    $checkStmt = $pdo->prepare("SELECT * FROM verification_tokens WHERE token = ?");
+    $checkStmt->execute([$verificationToken]);
+    $tokenData = $checkStmt->fetch();
+    if ($tokenData) {
+        echo "  Token found in DB:\n";
+        echo "    - token_id: " . $tokenData['token_id'] . "\n";
+        echo "    - user_id: " . $tokenData['user_id'] . "\n";
+        echo "    - token_type: " . $tokenData['token_type'] . "\n";
+        echo "    - expires_at: " . $tokenData['expires_at'] . "\n";
+        echo "    - used_at: " . ($tokenData['used_at'] ?? 'NULL') . "\n";
+        echo "    - created_at: " . $tokenData['created_at'] . "\n";
+    } else {
+        echo "  ✗ Token NOT found in DB!\n";
+    }
+    
     $validatedUserId = validateVerificationToken($verificationToken);
+    echo "  validateVerificationToken() returned: " . var_export($validatedUserId, true) . " (type: " . gettype($validatedUserId) . ")\n";
+    echo "  Expected userId: " . $userId . " (type: " . gettype($userId) . ")\n";
+    echo "  Comparison result (===): " . ($validatedUserId === $userId ? 'MATCH' : 'NO MATCH') . "\n";
+    echo "  Comparison result (==): " . ($validatedUserId == $userId ? 'MATCH' : 'NO MATCH') . "\n";
+    
     if ($validatedUserId === $userId) {
         echo "  ✓ Token is valid\n";
         

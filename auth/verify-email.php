@@ -33,10 +33,15 @@ if (empty($token)) {
             
             // Get user details for personalized message
             try {
-                $stmt = $pdo->prepare("SELECT name, email FROM users WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT email FROM users WHERE user_id = ?");
                 $stmt->execute([$userId]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                $userName = $user['name'] ?? 'Member';
+                
+                // Get member name
+                $memberStmt = $pdo->prepare("SELECT member_name FROM members WHERE user_id = ?");
+                $memberStmt->execute([$userId]);
+                $member = $memberStmt->fetch(PDO::FETCH_ASSOC);
+                $userName = $member['member_name'] ?? 'Member';
             } catch (Exception $e) {
                 error_log("Error fetching user details: " . $e->getMessage());
                 $userName = 'Member';
