@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Level Up Fitness</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+            margin: -40px -40px 30px -40px;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin: 0;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 20px 0;
+        }
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .message {
+            background: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 40px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 16px;
+            margin: 20px 0;
+            text-align: center;
+            cursor: pointer;
+        }
+        .cta-button:hover {
+            opacity: 0.9;
+            text-decoration: none;
+            color: white;
+        }
+        .copy-link {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 15px 0;
+        }
+        .info {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .footer {
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .account-info {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        .account-info-item {
+            margin: 8px 0;
+        }
+        .label {
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Verify Your Email</h1>
+            <p>Level Up Fitness - Complete Your Registration</p>
+        </div>
+
+        <div class="content">
+            <div class="greeting">
+                <p>Hi {{MEMBER_NAME}},</p>
+                <p>Welcome to Level Up Fitness! 🎉</p>
+            </div>
+
+            <div class="message">
+                <strong>Your account has been created successfully!</strong><br>
+                To activate your account and start using our fitness platform, please verify your email address by clicking the button below.
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{VERIFICATION_URL}}" class="cta-button">
+                    ✓ Verify Email Address
+                </a>
+            </div>
+
+            <div class="warning">
+                <strong>⏰ Action Required:</strong> This verification link expires in {{EXPIRATION_HOURS}} hours. Please verify your email as soon as possible.
+            </div>
+
+            <p>Or copy and paste this link in your browser:</p>
+            <div class="copy-link">{{VERIFICATION_URL}}</div>
+
+            <div class="account-info">
+                <p style="margin-top: 0;"><strong>Your Account Details:</strong></p>
+                <div class="account-info-item">
+                    <span class="label">Member ID:</span> {{MEMBER_ID}}
+                </div>
+                <div class="account-info-item">
+                    <span class="label">Email:</span> {{EMAIL}}
+                </div>
+                <div class="account-info-item">
+                    <span class="label">Membership Type:</span> {{MEMBERSHIP_TYPE}}
+                </div>
+                {{#if TRAINER_ASSIGNED}}
+                <div class="account-info-item">
+                    <span class="label">Assigned Trainer:</span> {{TRAINER_NAME}}
+                </div>
+                {{/if}}
+            </div>
+
+            <div class="info">
+                <strong>💡 What's Next?</strong><br>
+                After verifying your email, you can:
+                <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                    <li>Log in to your account</li>
+                    <li>View your membership details</li>
+                    <li>Make equipment reservations</li>
+                    <li>Track your workout progress</li>
+                </ul>
+            </div>
+
+            <div class="info" style="background: #d4edda; border-left-color: #28a745;">
+                <strong>✓ Account Status:</strong><br>
+                Your account is currently <strong>INACTIVE</strong> and will be automatically activated once you verify your email.
+            </div>
+
+            <p style="margin-top: 20px;">If you did not create this account, please ignore this email.</p>
+
+            <div class="footer">
+                <p>© 2026 Level Up Fitness. All rights reserved.</p>
+                <p>
+                    <a href="{{WEBSITE_URL}}">Website</a> | 
+                    <a href="{{SUPPORT_URL}}">Support</a> | 
+                    <a href="{{DASHBOARD_URL}}">Dashboard</a>
+                </p>
+                <p>
+                    Having trouble? <a href="{{SUPPORT_URL}}">Contact our support team</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

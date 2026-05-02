@@ -954,5 +954,156 @@ function sendReservationNotification($userId, $email, $reservationId, $equipment
     );
 }
 
+/**
+ * Generate an email verification token
+ * 
+ * @param int $userId The user ID to generate token for
+ * @param int $expirationHours Hours until token expires (default 24)
+ * @return string|false The verification token or false on error
+ */
+function generateVerificationToken($userId, $expirationHours = 24) {
+    global $pdo;
+    
+    try {
+        // Generate a secure random token
+        $token = bin2hex(random_bytes(16)); // 32 character hex string
+        
+        // Calculate expiration time
+        $expiresAt = date('Y-m-d H:i:s', strtotime("+$expirationHours hours"));
+        
+        // Store token in database
+        $stmt = $pdo->prepare("
+            INSERT INTO verification_tokens (user_id, token, token_type, expires_at, created_at)
+            VALUES (?, ?, 'email_verification', ?, NOW())
+        ");
+        
+        if ($stmt->execute([$userId, $token, $expiresAt])) {
+            return $token;
+        }
+        
+        return false;
+    } catch (Exception $e) {
+        error_log("Error generating verification token: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Validate an email verification token
+ * 
+ * @param string $token The token to validate
+ * @return int|false The user ID if token is valid, false otherwise
+ */
+function validateVerificationToken($token) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT user_id FROM verification_tokens
+            WHERE token = ? 
+            AND token_type = 'email_verification'
+            AND used_at IS NULL
+            AND expires_at > NOW()
+            LIMIT 1
+        ");
+        
+        if ($stmt->execute([$token])) {
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result ? (int)$result['user_id'] : false;
+        }
+        
+        return false;
+    } catch (Exception $e) {
+        error_log("Error validating verification token: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Activate a user account by marking verification token as used
+ * 
+ * @param string $token The verification token
+ * @return bool True if activation successful, false otherwise
+ */
+function activateUserByToken($token) {
+    global $pdo;
+    
+    try {
+        // Start transaction
+        $pdo->beginTransaction();
+        
+        // Get the user ID from the token
+        $stmt = $pdo->prepare("
+            SELECT user_id FROM verification_tokens
+            WHERE token = ? 
+            AND token_type = 'email_verification'
+            AND used_at IS NULL
+            AND expires_at > NOW()
+            LIMIT 1
+        ");
+        
+        if (!$stmt->execute([$token])) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$result) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        $userId = (int)$result['user_id'];
+        
+        // Update user to mark as verified and active
+        $updateStmt = $pdo->prepare("
+            UPDATE users 
+            SET is_verified = 1, status = 'Active'
+            WHERE id = ?
+        ");
+        
+        if (!$updateStmt->execute([$userId])) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        // Mark token as used
+        $tokenStmt = $pdo->prepare("
+            UPDATE verification_tokens
+            SET used_at = NOW()
+            WHERE token = ?
+        ");
+        
+        if (!$tokenStmt->execute([$token])) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        // Commit transaction
+        $pdo->commit();
+        
+        // Log activity
+        logActivity(
+            $userId,
+            'account_verification',
+            'User verified email and activated account',
+            [],
+            [
+                'icon' => 'check-circle',
+                'color' => 'success',
+                'entity_type' => 'user',
+                'entity_id' => $userId,
+                'priority' => 'high'
+            ]
+        );
+        
+        return true;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Error activating user by token: " . $e->getMessage());
+        return false;
+    }
+}
+
 ?>
 

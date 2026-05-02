@@ -390,6 +390,44 @@ function sendBulkEmails($emails) {
 }
 
 /**
+ * Send Email Verification Email
+ * 
+ * @param string $memberEmail Member's email
+ * @param string $memberName Member's name
+ * @param string $verificationToken Verification token
+ * @param array $memberData Member information
+ * @param int $expirationHours Hours until token expires
+ * @return array Result
+ */
+function sendEmailVerificationEmail($memberEmail, $memberName, $verificationToken, $memberData = [], $expirationHours = 24) {
+    
+    $verificationUrl = APP_URL . 'auth/verify-email.php?token=' . urlencode($verificationToken);
+    
+    $variables = [
+        'member_name' => $memberName,
+        'email' => $memberEmail,
+        'member_id' => $memberData['member_id'] ?? 'N/A',
+        'membership_type' => $memberData['membership_type'] ?? '',
+        'trainer_assigned' => !empty($memberData['trainer_name']),
+        'trainer_name' => $memberData['trainer_name'] ?? '',
+        'verification_url' => $verificationUrl,
+        'expiration_hours' => $expirationHours,
+        'website_url' => APP_URL,
+        'dashboard_url' => APP_URL . 'dashboard/',
+        'support_url' => APP_URL . 'support/',
+    ];
+    
+    $htmlBody = renderEmailTemplate('email-verification', $variables);
+    
+    return SMTPMailService::send(
+        $memberEmail,
+        'Verify Your Email - Level Up Fitness',
+        $htmlBody,
+        "Please verify your email address to activate your account"
+    );
+}
+
+/**
  * Test SMTP configuration
  * 
  * @param string $testEmail Email to send test to

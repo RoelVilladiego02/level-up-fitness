@@ -35,36 +35,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch();
 
             if ($user && verifyPassword($password, $user['password'])) {
-                // Update last login
-                $updateStmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
-                $updateStmt->execute([$user['user_id']]);
-
-                // Set session variables
-                $_SESSION['user_id'] = $user['user_id'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['user_type'] = $user['user_type'];
-                $_SESSION['last_activity'] = time();
-
-                // Get additional user info based on role
-                if ($user['user_type'] === 'member') {
-                    $memberStmt = $pdo->prepare("SELECT member_name FROM members WHERE user_id = ?");
-                    $memberStmt->execute([$user['user_id']]);
-                    $member = $memberStmt->fetch();
-                    $_SESSION['name'] = $member['member_name'] ?? 'Member';
-                } elseif ($user['user_type'] === 'trainer') {
-                    $trainerStmt = $pdo->prepare("SELECT trainer_name FROM trainers WHERE user_id = ?");
-                    $trainerStmt->execute([$user['user_id']]);
-                    $trainer = $trainerStmt->fetch();
-                    $_SESSION['name'] = $trainer['trainer_name'] ?? 'Trainer';
+                // Check if user is verified (for members requiring email verification)
+                if ($user['user_type'] === 'member' && (!isset($user['is_verified']) || $user['is_verified'] == 0)) {
+                    $loginError = 'Your account is pending email verification. Please check your email for the verification link.';
                 } else {
-                    $_SESSION['name'] = 'Administrator';
+                    // Update last login
+                    $updateStmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
+                    $updateStmt->execute([$user['user_id']]);
+
+                    // Set session variables
+                    $_SESSION['user_id'] = $user['user_id'];
+                    $_SESSION['email'] = $user['email'];
+                    $_SESSION['user_type'] = $user['user_type'];
+                    $_SESSION['last_activity'] = time();
+
+                    // Get additional user info based on role
+                    if ($user['user_type'] === 'member') {
+                        $memberStmt = $pdo->prepare("SELECT member_name FROM members WHERE user_id = ?");
+                        $memberStmt->execute([$user['user_id']]);
+                        $member = $memberStmt->fetch();
+                        $_SESSION['name'] = $member['member_name'] ?? 'Member';
+                    } elseif ($user['user_type'] === 'trainer') {
+                        $trainerStmt = $pdo->prepare("SELECT trainer_name FROM trainers WHERE user_id = ?");
+                        $trainerStmt->execute([$user['user_id']]);
+                        $trainer = $trainerStmt->fetch();
+                        $_SESSION['name'] = $trainer['trainer_name'] ?? 'Trainer';
+                    } else {
+                        $_SESSION['name'] = 'Administrator';
+                    }
+
+                    // Log the login action
+                    logAction($user['user_id'], 'LOGIN', 'Authentication', 'User logged in successfully');
+
+                    // Redirect to dashboard
+                    redirect(APP_URL . 'dashboard/');
                 }
-
-                // Log the login action
-                logAction($user['user_id'], 'LOGIN', 'Authentication', 'User logged in successfully');
-
-                // Redirect to dashboard
-                redirect(APP_URL . 'dashboard/');
             } else {
                 $loginError = 'Invalid email or password.';
             }

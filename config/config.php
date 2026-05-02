@@ -15,6 +15,7 @@ define('SESSION_NAME', 'level_up_fitness_session');
 define('APP_NAME', 'Level Up Fitness');
 define('APP_VERSION', '1.0.0');
 define('APP_URL', 'http://localhost/level-up-fitness/');
+define('SUPPORT_EMAIL', 'support@levelupfitness.com');
 
 // Paths
 define('BASE_PATH', dirname(dirname(__FILE__)));

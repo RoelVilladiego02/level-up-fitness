@@ -18,7 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formData['contact_number'] = sanitize($_POST['contact_number'] ?? '');
     $formData['membership_type'] = sanitize($_POST['membership_type'] ?? '');
     $formData['trainer_id'] = sanitize($_POST['trainer_id'] ?? '');
-    $formData['status'] = sanitize($_POST['status'] ?? STATUS_ACTIVE);
+    // New members default to Inactive until email verified
+    $formData['status'] = 'Inactive';
     $joinDate = sanitize($_POST['join_date'] ?? '');
 
     // Validate
@@ -79,33 +80,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Log action
             logAction($_SESSION['user_id'], 'ADD_MEMBER', 'Members', 'Added member: ' . $formData['member_name']);
 
-            // Send welcome email
+            // Send email verification link
             try {
-                // Get trainer info if assigned
-                $trainerInfo = ['trainer_name' => '', 'trainer_email' => ''];
-                if (!empty($formData['trainer_id'])) {
-                    $trainerStmt = $pdo->prepare("SELECT full_name, email FROM users WHERE user_id = (SELECT user_id FROM trainers WHERE trainer_id = ?)");
-                    $trainerStmt->execute([$formData['trainer_id']]);
-                    $trainer = $trainerStmt->fetch();
-                    if ($trainer) {
-                        $trainerInfo = ['trainer_name' => $trainer['full_name'], 'trainer_email' => $trainer['email']];
+                // Generate verification token
+                $verificationToken = generateVerificationToken($userId);
+                
+                if ($verificationToken) {
+                    // Get trainer info if assigned
+                    $trainerInfo = ['trainer_name' => '', 'trainer_email' => ''];
+                    if (!empty($formData['trainer_id'])) {
+                        $trainerStmt = $pdo->prepare("SELECT full_name, email FROM users WHERE user_id = (SELECT user_id FROM trainers WHERE trainer_id = ?)");
+                        $trainerStmt->execute([$formData['trainer_id']]);
+                        $trainer = $trainerStmt->fetch();
+                        if ($trainer) {
+                            $trainerInfo = ['trainer_name' => $trainer['full_name'], 'trainer_email' => $trainer['email']];
+                        }
                     }
+
+                    $memberData = [
+                        'member_id' => $memberId,
+                        'membership_type' => $formData['membership_type'],
+                        'trainer_name' => $trainerInfo['trainer_name'],
+                    ];
+                    
+                    sendEmailVerificationEmail(
+                        $formData['email'], 
+                        $formData['member_name'], 
+                        $verificationToken, 
+                        $memberData,
+                        24
+                    );
+                    
+                    setMessage('Member added successfully! ID: ' . $memberId . ' (Verification email sent - member must verify email to activate account)', 'success');
+                } else {
+                    setMessage('Member added successfully! ID: ' . $memberId . ' (Warning: Could not generate verification token)', 'warning');
                 }
-
-                sendMemberWelcomeEmail($formData['email'], $formData['member_name'], [
-                    'username' => strtolower(str_replace(' ', '.', $formData['member_name'])),
-                    'member_id' => $memberId,
-                    'membership_type' => $formData['membership_type'],
-                    'membership_expiry' => date('M d, Y', strtotime($joinDate . ' +1 year')),
-                    'trainer_name' => $trainerInfo['trainer_name'],
-                    'trainer_email' => $trainerInfo['trainer_email'],
-                ]);
             } catch (Exception $e) {
-                error_log('Failed to send welcome email for member ' . $memberId . ': ' . $e->getMessage());
+                error_log('Failed to send verification email for member ' . $memberId . ': ' . $e->getMessage());
                 // Don't fail the member creation if email fails
+                setMessage('Member added successfully! ID: ' . $memberId . ' (Error sending verification email - please contact support)', 'warning');
             }
-
-            setMessage('Member added successfully! ID: ' . $memberId . ' (Welcome email sent)', 'success');
             redirect(APP_URL . 'modules/members/');
         } catch (Exception $e) {
             setMessage('Error adding member: ' . $e->getMessage(), 'error');
@@ -219,16 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
                                 </div>
 
-                                <div class="row">
-                                    <div class="col-md-6 mb-3"></div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="status" class="form-label">Status</label>
-                                        <select class="form-select" id="status" name="status">
-                                            <option value="Active" <?php echo ($formData['status'] ?? 'Active') === 'Active' ? 'selected' : ''; ?>>Active</option>
-                                            <option value="Inactive" <?php echo ($formData['status'] ?? '') === 'Inactive' ? 'selected' : ''; ?>>Inactive</option>
-                                        </select>
-                                    </div>
-                                </div>
+
 
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                                     <a href="<?php echo APP_URL; ?>modules/members/" class="btn btn-outline-secondary">
@@ -250,8 +255,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <div class="card-body">
                             <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success"></i> A temporary account will be created</li>
-                                <li><i class="fas fa-check text-success"></i> Member can change password on first login</li>
+                                <li><i class="fas fa-check text-success"></i> Account created as <strong>Inactive</strong></li>
+                                <li><i class="fas fa-envelope text-info"></i> Verification email sent to member</li>
+                                <li><i class="fas fa-lock text-warning"></i> Member must verify email to activate</li>
                                 <li><i class="fas fa-check text-success"></i> All fields marked with * are required</li>
                                 <li><i class="fas fa-check text-success"></i> Email must be unique</li>
                                 <li><i class="fas fa-check text-success"></i> Member ID will be auto-generated</li>

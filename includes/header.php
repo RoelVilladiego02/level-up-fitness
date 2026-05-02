@@ -8,6 +8,7 @@
 require_once dirname(dirname(__FILE__)) . '/config/config.php';
 require_once dirname(dirname(__FILE__)) . '/config/database.php';
 require_once dirname(dirname(__FILE__)) . '/includes/functions.php';
+require_once dirname(dirname(__FILE__)) . '/includes/email-notifications.php';
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
