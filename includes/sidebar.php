@@ -16,17 +16,25 @@ $userRole = $_SESSION['user_type'] ?? 'member';
             <span class="luf-sidebar__brand-name">LEVEL UP</span>
         </div>
 
+        <?php if ($userRole !== 'admin'): ?>
         <div class="luf-sidebar__section">
             <span class="luf-sidebar__label">Main</span>
             <ul class="luf-sidebar__list">
                 <li>
-                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>dashboard/">
-                        <span class="luf-sidebar__link-icon"><i class="fas fa-home"></i></span>
-                        <span>Dashboard</span>
+                    <a class="luf-sidebar__link" href="<?php 
+                        if ($userRole === 'member') {
+                            echo APP_URL . 'modules/members/view.php?id=' . ($_SESSION['user_id'] ?? '');
+                        } elseif ($userRole === 'trainer') {
+                            echo APP_URL . 'modules/trainers/view.php?id=' . ($_SESSION['user_id'] ?? '');
+                        }
+                    ?>">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-user-circle"></i></span>
+                        <span>Profile</span>
                     </a>
                 </li>
             </ul>
         </div>
+        <?php endif; ?>
 
         <?php if ($userRole === 'admin'): ?>
         <div class="luf-sidebar__section">

@@ -8,7 +8,7 @@
  * easy-to-use interfaces for sending notifications
  */
 
-require_once dirname(__FILE__) . '/MailtrapService.php';
+require_once dirname(__FILE__) . '/../config/MailtrapService.php';
 
 /**
  * Render email template with variables

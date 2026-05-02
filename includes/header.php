@@ -86,11 +86,6 @@ $_SESSION['last_activity'] = time();
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                             <?php endforeach; ?>
-                            <li>
-                                <a class="dropdown-item text-center text-primary" href="<?php echo APP_URL; ?>modules/notifications/">
-                                    View All Notifications
-                                </a>
-                            </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <button class="dropdown-item text-center text-muted" onclick="markAllNotificationsRead()">
@@ -102,20 +97,13 @@ $_SESSION['last_activity'] = time();
                                 <i class="fas fa-bell-slash text-muted"></i>
                                 <p class="mb-0 text-muted">No new notifications</p>
                             </li>
+                            <li><hr class="dropdown-divider"></li>
                         <?php endif; ?>
-                    </ul>
-                </div>
-
-                <!-- User Menu -->
-                <div class="dropdown">
-                    <button class="btn btn-link text-white dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-user-circle fa-lg"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="<?php echo APP_URL; ?>dashboard/">Profile</a></li>
-                        <li><a class="dropdown-item" href="<?php echo APP_URL; ?>modules/notifications/">Notifications</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="<?php echo APP_URL; ?>auth/logout.php">Logout</a></li>
+                        <li>
+                            <a class="dropdown-item text-center text-primary" href="<?php echo APP_URL; ?>modules/notifications/">
+                                View All Notifications
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </div>
