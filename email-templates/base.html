@@ -1,5 +1,5 @@
-<!-- Email Template Base -->
-<!-- This file contains the base email template structure -->
+<!-- Email Template Base - Level Up Fitness -->
+<!-- Matches system design with dark theme and primary color #4A90E2 -->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -9,111 +9,177 @@
     <title>{{SUBJECT}}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
+            color: #cccccc;
+            background-color: #0a0a0a;
         }
+        
+        .email-wrapper {
+            background-color: #0a0a0a;
+            padding: 20px;
+        }
+        
         .email-container {
             max-width: 600px;
             margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 8px;
+            background-color: #111111;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #2e2e2e;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
         }
+        
         .email-header {
-            padding: 30px 20px;
+            padding: 40px 30px;
+            background: linear-gradient(135deg, #4A90E2 0%, #2e5cb8 100%);
             color: white;
             text-align: center;
         }
-        .email-header.primary { background-color: #4A90E2; }
-        .email-header.success { background-color: #27ae60; }
-        .email-header.warning { background-color: #f39c12; }
-        .email-header.danger { background-color: #e74c3c; }
+        
         .email-header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
         }
+        
         .email-header .subtitle {
             font-size: 14px;
-            opacity: 0.9;
+            opacity: 0.85;
+            font-weight: 400;
         }
+        
         .email-content {
-            padding: 30px 20px;
+            padding: 40px 30px;
         }
+        
         .email-content p {
-            margin-bottom: 15px;
+            margin-bottom: 16px;
             line-height: 1.8;
+            color: #cccccc;
+            font-size: 14px;
         }
+        
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        
         .info-box {
-            background-color: #f9f9f9;
+            background-color: #1a1a1a;
             border-left: 4px solid #4A90E2;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
+            padding: 16px;
+            margin: 24px 0;
+            border-radius: 6px;
+            border: 1px solid #2e2e2e;
         }
-        .info-box.success { border-left-color: #27ae60; }
-        .info-box.warning { border-left-color: #f39c12; }
-        .info-box.danger { border-left-color: #e74c3c; }
+        
+        .info-box.success { border-left-color: #28A745; background-color: rgba(40, 167, 69, 0.05); }
+        .info-box.warning { border-left-color: #ffc107; background-color: rgba(255, 193, 7, 0.05); }
+        .info-box.danger { border-left-color: #dc3545; background-color: rgba(220, 53, 69, 0.05); }
+        
+        .info-rows {
+            background-color: #1a1a1a;
+            border: 1px solid #2e2e2e;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
         .info-row {
+            padding: 12px 16px;
+            border-bottom: 1px solid #2e2e2e;
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
         }
+        
         .info-row:last-child { border-bottom: none; }
+        
         .info-label {
-            font-weight: bold;
-            color: #555;
+            font-weight: 600;
+            color: #999999;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
+        
         .info-value {
-            color: #333;
+            color: #ffffff;
+            text-align: right;
+            font-weight: 500;
         }
+        
         .btn {
             display: inline-block;
-            padding: 12px 30px;
+            padding: 14px 32px;
             background-color: #4A90E2;
             color: white;
             text-decoration: none;
-            border-radius: 4px;
-            margin: 15px 0;
+            border-radius: 6px;
+            margin: 24px 0;
+            font-weight: 600;
+            font-size: 14px;
         }
-        .btn.primary { background-color: #4A90E2; }
-        .btn.success { background-color: #27ae60; }
-        .btn.warning { background-color: #f39c12; }
+        
+        .btn:hover {
+            background-color: #3a7bc8;
+            text-decoration: none;
+            color: white;
+        }
+        
+        .btn-block { display: block; width: 100%; }
+        .btn.success { background-color: #28A745; }
+        .btn.warning { background-color: #ffc107; color: #000; }
+        .btn.danger { background-color: #dc3545; }
+        
+        .copy-link {
+            background-color: #1a1a1a;
+            padding: 12px 16px;
+            border-radius: 6px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #4A90E2;
+            border: 1px solid #2e2e2e;
+            margin: 16px 0;
+        }
+        
+        .divider {
+            height: 1px;
+            background-color: #2e2e2e;
+            margin: 24px 0;
+        }
+        
         .email-footer {
-            background-color: #f8f9fa;
-            padding: 20px;
+            background-color: #0a0a0a;
+            border-top: 1px solid #2e2e2e;
+            padding: 24px 30px;
             text-align: center;
             font-size: 12px;
-            color: #666;
-            border-top: 1px solid #eee;
+            color: #999999;
         }
+        
         .email-footer a {
             color: #4A90E2;
             text-decoration: none;
         }
-        .divider {
-            height: 2px;
-            background-color: #eee;
-            margin: 20px 0;
-        }
-        .highlight {
-            background-color: #fff3cd;
-            padding: 2px 6px;
-            border-radius: 3px;
-        }
+        
         .text-center { text-align: center; }
-        .text-muted { color: #999; }
+        .text-muted { color: #999999; }
         .mt-20 { margin-top: 20px; }
         .mb-20 { margin-bottom: 20px; }
     </style>
 </head>
 <body>
-    <div class="email-container">
-        {{BODY}}
+    <div class="email-wrapper">
+        <div class="email-container">
+            {{BODY}}
+        </div>
     </div>
 </body>
 </html>
