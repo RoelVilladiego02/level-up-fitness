@@ -73,9 +73,6 @@ if (!empty($memberId)) {
                         <i class="fas fa-trash"></i> Delete
                     </a>
                 </div>
-                <a href="<?php echo APP_URL; ?>modules/members/" class="btn btn-secondary btn-sm">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
                 <h1><i class="fas fa-user"></i> Member Details</h1>
                 <p>View complete member information</p>
             </div>

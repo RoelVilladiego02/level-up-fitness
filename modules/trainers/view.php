@@ -74,9 +74,6 @@ if (!empty($trainerId)) {
                         <i class="fas fa-trash"></i> Delete
                     </a>
                 </div>
-                <a href="<?php echo APP_URL; ?>modules/trainers/" class="btn btn-secondary btn-sm">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
                 <h1><i class="fas fa-user"></i> Trainer Details</h1>
                 <p>View trainer information</p>
             </div>

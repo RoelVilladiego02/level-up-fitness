@@ -99,63 +99,7 @@ if ($member && isset($member['join_date'], $member['membership_type'])) {
 
 <div class="container-fluid">
     <div class="row">
-        <!-- Sidebar Navigation -->
-        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
-            <div class="position-sticky pt-3">
-                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                    MAIN MENU
-                </h6>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="<?php echo APP_URL; ?>dashboard/">
-                            <i class="fas fa-home"></i> Dashboard
-                        </a>
-                    </li>
-                </ul>
-
-                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                    MY FITNESS
-                </h6>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo APP_URL; ?>modules/workouts/">
-                            <i class="fas fa-dumbbell"></i> My Workouts
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo APP_URL; ?>modules/sessions/">
-                            <i class="fas fa-calendar"></i> My Sessions
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo APP_URL; ?>modules/attendance/">
-                            <i class="fas fa-clipboard-check"></i> Attendance
-                        </a>
-                    </li>
-                </ul>
-
-                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                    ACCOUNT
-                </h6>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo APP_URL; ?>modules/members/view.php?id=<?php echo $member['member_id'] ?? ''; ?>">
-                            <i class="fas fa-user"></i> My Profile
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo APP_URL; ?>modules/payments/">
-                            <i class="fas fa-credit-card"></i> Payments
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo APP_URL; ?>auth/logout.php">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
+        <?php include dirname(__FILE__) . '/../includes/sidebar.php'; ?>
 
         <!-- Main Content -->
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
@@ -170,9 +114,6 @@ if ($member && isset($member['join_date'], $member['membership_type'])) {
                         <span class="me-3">
                             Welcome, <strong><?php echo $userInfo['name']; ?></strong>
                         </span>
-                        <a href="<?php echo APP_URL; ?>auth/logout.php" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
                     </div>
                 </div>
             </nav>
