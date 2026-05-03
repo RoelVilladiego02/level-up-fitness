@@ -156,19 +156,50 @@ if (empty($token)) {
         .info-box {
             background-color: #f8f9fa;
             border-left: 4px solid #667eea;
-            padding: 15px;
+            padding: 20px;
             margin-top: 30px;
-            border-radius: 5px;
+            border-radius: 8px;
             text-align: left;
         }
         .info-box h5 {
             color: #667eea;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            font-size: 16px;
         }
         .info-box p {
-            margin: 5px 0;
-            color: #666;
-            font-size: 14px;
+            margin: 10px 0;
+            color: #555;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        .info-box p strong {
+            color: #333;
+            font-weight: 600;
+        }
+        .info-box-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .info-box-item::before {
+            content: "•";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        .info-box.error-context {
+            border-left-color: #dc3545;
+            background-color: #fff8f9;
+        }
+        .info-box.error-context h5 {
+            color: #dc3545;
+        }
+        .divider {
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 20px 0;
         }
     </style>
 </head>
@@ -184,11 +215,20 @@ if (empty($token)) {
                 Welcome, <strong><?php echo htmlspecialchars($userName); ?></strong>!<br>
                 Your account is now active and ready to use.
             </p>
+            
+            <div class="divider"></div>
+            
             <div class="info-box">
                 <h5>Next Steps:</h5>
-                <p>✓ Your account has been activated</p>
-                <p>✓ You can now log in with your credentials</p>
-                <p>✓ Check your email for additional account information</p>
+                <div class="info-box-item">
+                    Your account has been activated
+                </div>
+                <div class="info-box-item">
+                    You can now log in with your credentials
+                </div>
+                <div class="info-box-item">
+                    Check your email for additional account information
+                </div>
             </div>
             <div class="btn-group">
                 <a href="<?php echo APP_URL; ?>auth/login.php" class="btn btn-primary">Go to Login</a>
@@ -200,13 +240,31 @@ if (empty($token)) {
             <div class="alert alert-danger">
                 <?php echo htmlspecialchars($message); ?>
             </div>
-            <div class="info-box">
+            
+            <div class="divider"></div>
+            
+            <div class="info-box error-context">
                 <h5>What Can You Do?</h5>
-                <p>• Check your email for a new verification link</p>
-                <p>• Ensure the link wasn't expired (links expire after 24 hours)</p>
-                <p>• Contact support if you continue to have issues</p>
-                <p><strong>Support Email:</strong> <?php echo htmlspecialchars(defined('SUPPORT_EMAIL') ? SUPPORT_EMAIL : 'support@levelupfitness.com'); ?></p>
+                <div class="info-box-item">
+                    Check your email for a new verification link
+                </div>
+                <div class="info-box-item">
+                    Ensure the link wasn't expired (links expire after 24 hours)
+                </div>
+                <div class="info-box-item">
+                    Contact support if you continue to have issues
+                </div>
             </div>
+            
+            <div class="info-box">
+                <p style="margin: 0; text-align: center;"><strong>Support Email:</strong></p>
+                <p style="text-align: center; margin-top: 8px; font-weight: 500;">
+                    <a href="mailto:<?php echo htmlspecialchars(defined('SUPPORT_EMAIL') ? SUPPORT_EMAIL : 'support@levelupfitness.com'); ?>" style="color: #667eea; text-decoration: none;">
+                        <?php echo htmlspecialchars(defined('SUPPORT_EMAIL') ? SUPPORT_EMAIL : 'support@levelupfitness.com'); ?>
+                    </a>
+                </p>
+            </div>
+            
             <div class="btn-group">
                 <a href="<?php echo APP_URL; ?>auth/login.php" class="btn btn-primary">Back to Login</a>
                 <a href="<?php echo APP_URL; ?>" class="btn btn-secondary">Home</a>
