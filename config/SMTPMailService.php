@@ -128,6 +128,7 @@ class SMTPMailService {
             
             // Content
             $mail->isHTML(true);
+            $mail->CharSet = PHPMailer::CHARSET_UTF8;  // Ensure UTF-8 charset
             $mail->Subject = $subject;
             $mail->Body = $htmlBody;
             

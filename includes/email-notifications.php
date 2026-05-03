@@ -27,6 +27,7 @@ function renderEmailTemplate($templateName, $variables = []) {
         throw new RuntimeException($error);
     }
     
+    // Load the specific template content
     $html = file_get_contents($templateFile);
     
     // Replace all {{VARIABLE}} with actual values
@@ -47,6 +48,14 @@ function renderEmailTemplate($templateName, $variables = []) {
     
     // Remove any unreplaced variables
     $html = preg_replace('/\{\{[A-Z_]+\}\}/', '', $html);
+    
+    // Load and wrap with base template
+    $baseFile = EMAIL_TEMPLATE_DIR . 'base.html';
+    if (file_exists($baseFile)) {
+        $baseHtml = file_get_contents($baseFile);
+        // Replace {{BODY}} with rendered template content
+        $html = str_replace('{{BODY}}', $html, $baseHtml);
+    }
     
     return $html;
 }
@@ -422,7 +431,8 @@ function sendEmailVerificationEmail($memberEmail, $memberName, $verificationToke
         'membership_type' => $memberData['membership_type'] ?? '',
         'trainer_assigned' => !empty($memberData['trainer_name']),
         'trainer_name' => $memberData['trainer_name'] ?? '',
-        'verification_url' => $verificationUrl,
+        'verification_link' => $verificationUrl,
+        'verification_code' => $verificationToken,
         'expiration_hours' => $expirationHours,
         'website_url' => APP_URL,
         'dashboard_url' => APP_URL . 'dashboard/',
