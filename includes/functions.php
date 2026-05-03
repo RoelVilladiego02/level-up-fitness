@@ -501,8 +501,14 @@ function generatePagination($currentPage, $totalPages, $baseUrl = '') {
 }
 
 /**
- * Send email notification
- * Supports both PHP mail() and SMTP configuration
+ * Send email notification via SMTP
+ * Uses SMTPMailService for consistent SMTP delivery
+ * 
+ * @param string $toEmail Recipient email address
+ * @param string $subject Email subject
+ * @param string $messageBody Email body content
+ * @param string $type 'html' or 'text' format
+ * @return bool Success status
  */
 function sendEmailNotification($toEmail, $subject, $messageBody, $type = 'html') {
     // Validate email
@@ -511,35 +517,41 @@ function sendEmailNotification($toEmail, $subject, $messageBody, $type = 'html')
         return false;
     }
     
-    // Load Mailtrap service
-    require_once dirname(__FILE__) . '/../config/MailtrapService.php';
-    
     // Sanitize subject
     $subject = substr($subject, 0, 100);
     
     try {
-        // Use Mailtrap API for email sending
+        // Use SMTP for email sending
         if ($type === 'html') {
-            $result = MailtrapService::send($toEmail, $subject, $messageBody);
-        } else {
-            // For plain text emails, send as both HTML and text
-            $result = MailtrapService::send(
+            // Send as HTML
+            $result = SMTPMailService::send(
                 $toEmail, 
                 $subject, 
-                '<pre>' . htmlspecialchars($messageBody, ENT_QUOTES, 'UTF-8') . '</pre>',
                 $messageBody
+            );
+        } else {
+            // For plain text emails, wrap in pre tag for formatting
+            $htmlBody = '<pre style="font-family: monospace; white-space: pre-wrap; word-wrap: break-word; color: #cccccc;">' . 
+                        htmlspecialchars($messageBody, ENT_QUOTES, 'UTF-8') . 
+                        '</pre>';
+            
+            $result = SMTPMailService::send(
+                $toEmail, 
+                $subject, 
+                $htmlBody,
+                $messageBody  // Plain text alternative
             );
         }
         
         if ($result['success']) {
-            error_log('Email sent via Mailtrap to ' . $toEmail . ' with subject: ' . $subject);
+            error_log('Email sent via SMTP to ' . $toEmail . ' with subject: ' . $subject);
             return true;
         } else {
-            error_log('Failed to send email via Mailtrap to ' . $toEmail . ': ' . $result['message']);
+            error_log('Failed to send email via SMTP to ' . $toEmail . ': ' . $result['message']);
             return false;
         }
     } catch (Exception $e) {
-        error_log('Exception sending email via Mailtrap: ' . $e->getMessage());
+        error_log('Exception sending email via SMTP: ' . $e->getMessage());
         return false;
     }
 }
