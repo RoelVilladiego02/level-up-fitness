@@ -23,16 +23,16 @@
         </div>
     </div>
     
-    <div class="highlight" style="padding: 15px; margin: 20px 0; border-radius: 4px; border-left: 4px solid #f39c12;">
-        <p><strong>📢 Renew Now!</strong> Don't let your fitness streak end. Renew your membership before {{EXPIRATION_DATE}} to maintain continuous access.</p>
+    <div class="highlight" style="padding: 15px; margin: 20px 0; border-radius: 4px; border: 1px solid #2e2e2e; border-left: 4px solid #ffc107; background-color: #1a1a1a;">
+        <p><strong style="color: #ffffff;">📢 Renew Now!</strong> Don't let your fitness streak end. Renew your membership before {{EXPIRATION_DATE}} to maintain continuous access.</p>
     </div>
     
     <p><strong>Available Renewal Options:</strong></p>
     <div style="margin: 15px 0;">
         {{#each MEMBERSHIP_PLANS}}
-        <div style="background: #f9f9f9; padding: 12px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #4A90E2;">
-            <strong>{{this.NAME}}</strong> - ₱{{this.PRICE}}<br>
-            <small>{{this.DURATION}}</small>
+        <div style="background: #1a1a1a; border: 1px solid #2e2e2e; padding: 12px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #4A90E2;">
+            <strong style="color: #ffffff;">{{this.NAME}}</strong> - <span style="color: #ffffff;">₱{{this.PRICE}}</span><br>
+            <small style="color: #999999;">{{this.DURATION}}</small>
         </div>
         {{/each}}
     </div>
