@@ -134,6 +134,7 @@ CREATE TABLE payments (
     payment_method ENUM('Cash', 'Card', 'GCash', 'Bank Transfer') NOT NULL,
     payment_status ENUM('Paid', 'Pending', 'Overdue') NOT NULL DEFAULT 'Pending',
     payment_date DATE,
+    notes LONGTEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
     FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE SET NULL,

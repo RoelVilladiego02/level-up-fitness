@@ -68,6 +68,14 @@ try {
         $pdo->exec("ALTER TABLE members ADD INDEX idx_trainer_id (trainer_id)");
     }
     
+    // Check if notes column exists in payments table, if not add it
+    $result = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'payments' AND COLUMN_NAME = 'notes'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Adding notes column to payments...\n";
+        $pdo->exec("ALTER TABLE payments ADD COLUMN notes LONGTEXT NULL AFTER payment_date");
+    }
+    
     // Check if notifications table exists, if not create it
     $result = $pdo->query("SHOW TABLES LIKE 'notifications'");
     $rows = $result->fetchAll();
