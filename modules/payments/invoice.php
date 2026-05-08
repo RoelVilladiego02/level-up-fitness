@@ -229,13 +229,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email']) && $pay
 
             <!-- Print Styles -->
             <style media="print">
-                body { background: white; }
-                .page-header { display: none; }
-                .sidebar { display: none; }
-                .navbar { display: none; }
-                main { margin: 0; width: 100%; }
-                .btn-group { display: none; }
-                .invoice-container { border: none; padding: 0; margin: 0; }
+                @page {
+                    size: A4;
+                    margin: 0;
+                }
+                
+                body {
+                    margin: 0;
+                    padding: 0;
+                    background: white;
+                }
+                
+                .page-header {
+                    display: none !important;
+                }
+                
+                .sidebar {
+                    display: none !important;
+                }
+                
+                .navbar {
+                    display: none !important;
+                }
+                
+                .row {
+                    display: flex;
+                    margin: 0;
+                }
+                
+                .col-md-9 {
+                    flex: 0 0 100%;
+                    max-width: 100%;
+                    margin: 0;
+                    padding: 0;
+                }
+                
+                main {
+                    margin: 0;
+                    padding: 20px;
+                    width: 100%;
+                    max-width: 100%;
+                    box-shadow: none;
+                }
+                
+                .invoice-container {
+                    border: none;
+                    padding: 0;
+                    margin: 0;
+                    background: white;
+                    page-break-after: avoid;
+                }
+                
+                .invoice-container table {
+                    page-break-inside: avoid;
+                }
+                
+                .btn {
+                    display: none !important;
+                }
+                
+                .btn-group {
+                    display: none !important;
+                }
+                
+                .alert {
+                    display: none !important;
+                }
+                
+                footer {
+                    display: none !important;
+                }
             </style>
 
             <?php else: ?>
