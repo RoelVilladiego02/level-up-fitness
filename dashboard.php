@@ -390,7 +390,7 @@ try {
                                 </div>
                                 <div class="col-md-2 col-sm-4 col-6">
                                     <a href="<?php echo APP_URL; ?>modules/sessions/" class="btn btn-outline-warning w-100">
-                                        <i class="fas fa-calendar-alt"></i><br>Sessions
+                                        <i class="fas fa-calendar-alt"></i><br>Training Sessions
                                     </a>
                                 </div>
                                 <div class="col-md-2 col-sm-4 col-6">

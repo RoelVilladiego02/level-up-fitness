@@ -139,7 +139,17 @@ function isLoggedIn() {
  * Check user role
  */
 function userHasRole($role) {
-    return isset($_SESSION['user_type']) && $_SESSION['user_type'] === $role;
+    if (!isset($_SESSION['user_type'])) {
+        return false;
+    }
+    
+    // Handle array of roles
+    if (is_array($role)) {
+        return in_array($_SESSION['user_type'], $role, true);
+    }
+    
+    // Handle single role
+    return $_SESSION['user_type'] === $role;
 }
 
 /**

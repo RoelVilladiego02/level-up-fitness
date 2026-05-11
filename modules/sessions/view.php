@@ -35,6 +35,17 @@ try {
         redirect('modules/sessions/index.php');
     }
 
+    // Authorization check - trainers can only view their own sessions
+    if ($_SESSION['user_type'] === 'trainer') {
+        $trainerCheckStmt = $pdo->prepare("SELECT user_id FROM trainers WHERE trainer_id = ?");
+        $trainerCheckStmt->execute([$session['trainer_id']]);
+        $trainer = $trainerCheckStmt->fetch();
+        if (!$trainer || $trainer['user_id'] != $_SESSION['user_id']) {
+            setMessage('Access denied: You do not have permission to view this session', 'error');
+            redirect('modules/sessions/index.php');
+        }
+    }
+
     // Get attendees
     $attendeeStmt = $pdo->prepare("
         SELECT tsa.*, m.member_name, m.email

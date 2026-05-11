@@ -19,15 +19,29 @@ $offset = ($page - 1) * $itemsPerPage;
 $totalRecords = 0;
 $totalPages = 1;
 $trainers = [];
+$memberEnrollments = []; // Track member enrollments
 
 try {
     // Get trainers for filter dropdown
     $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers ORDER BY trainer_name");
     $trainerStmt->execute();
     $trainers = $trainerStmt->fetchAll();
+    
+    // If member, get their enrollment data
+    if ($_SESSION['user_type'] === 'member') {
+        $memberEnrollStmt = $pdo->prepare("
+            SELECT session_id FROM training_session_attendees 
+            WHERE member_id = ?
+        ");
+        $memberEnrollStmt->execute([$_SESSION['user_id']]);
+        $enrolledSessions = $memberEnrollStmt->fetchAll();
+        foreach ($enrolledSessions as $enrollment) {
+            $memberEnrollments[$enrollment['session_id']] = true;
+        }
+    }
 
     // Build query
-    $query = "SELECT ts.*, t.trainer_name, g.gym_name, 
+    $query = "SELECT ts.*, t.trainer_name, t.user_id as trainer_user_id, g.gym_name, 
               (SELECT COUNT(*) FROM training_session_attendees WHERE session_id = ts.session_id) as current_attendees
               FROM training_sessions ts
               LEFT JOIN trainers t ON ts.trainer_id = t.trainer_id
@@ -37,7 +51,7 @@ try {
 
     // Role-based access control
     if ($_SESSION['user_type'] === 'trainer') {
-        $query .= " AND ts.trainer_id = ?";
+        $query .= " AND t.user_id = ?";
         $params[] = $_SESSION['user_id'];
     }
 
@@ -184,9 +198,15 @@ try {
                                         </td>
                                         <td>
                                             <a href="view.php?id=<?php echo $session['session_id']; ?>" class="btn btn-sm btn-info">View</a>
-                                            <?php if ($_SESSION['user_type'] === 'admin' || ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] == $session['trainer_id'])): ?>
+                                            <?php if ($_SESSION['user_type'] === 'admin' || ($_SESSION['user_type'] === 'trainer' && $session['trainer_user_id'] == $_SESSION['user_id'])): ?>
                                                 <a href="edit.php?id=<?php echo $session['session_id']; ?>" class="btn btn-sm btn-warning">Edit</a>
                                                 <a href="delete.php?id=<?php echo $session['session_id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Delete this session?');">Delete</a>
+                                            <?php elseif ($_SESSION['user_type'] === 'member'): ?>
+                                                <?php if (isset($memberEnrollments[$session['session_id']])): ?>
+                                                    <a href="unenroll.php?id=<?php echo $session['session_id']; ?>" class="btn btn-sm btn-warning" onclick="return confirm('Unenroll from this session?');">Unenroll</a>
+                                                <?php else: ?>
+                                                    <a href="enroll.php?id=<?php echo $session['session_id']; ?>" class="btn btn-sm btn-success">Enroll</a>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         </td>
                                     </tr>

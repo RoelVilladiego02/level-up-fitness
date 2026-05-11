@@ -18,7 +18,11 @@ if (!$sessionId) {
 
 try {
     // Get session details
-    $sessionStmt = $pdo->prepare("SELECT * FROM training_sessions WHERE session_id = ?");
+    $sessionStmt = $pdo->prepare("
+        SELECT ts.*, t.user_id as trainer_user_id FROM training_sessions ts
+        LEFT JOIN trainers t ON ts.trainer_id = t.trainer_id
+        WHERE ts.session_id = ?
+    ");
     $sessionStmt->execute([$sessionId]);
     $session = $sessionStmt->fetch();
 
@@ -27,8 +31,8 @@ try {
         redirect('modules/sessions/index.php');
     }
 
-    // Check authorization
-    if ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] != $session['trainer_id']) {
+    // Check authorization - trainers can only delete their own sessions
+    if ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] != $session['trainer_user_id']) {
         setMessage('You do not have permission to delete this session', 'error');
         redirect('modules/sessions/index.php');
     }

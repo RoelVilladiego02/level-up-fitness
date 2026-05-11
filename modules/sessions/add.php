@@ -12,12 +12,24 @@ requireRole(['admin', 'trainer']);
 $message = getMessage();
 $trainers = [];
 $gyms = [];
+$currentTrainer = null;
 
 // Get trainers and gyms for dropdown
 try {
-    $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers ORDER BY trainer_name");
-    $trainerStmt->execute();
-    $trainers = $trainerStmt->fetchAll();
+    // If user is trainer, only get their own info
+    if ($_SESSION['user_type'] === 'trainer') {
+        $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE trainer_id = ? OR user_id = ?");
+        $trainerStmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
+        $currentTrainer = $trainerStmt->fetch();
+        if ($currentTrainer) {
+            $trainers = [$currentTrainer];
+        }
+    } else {
+        // Admin can see all trainers
+        $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE status = 'Active' ORDER BY trainer_name");
+        $trainerStmt->execute();
+        $trainers = $trainerStmt->fetchAll();
+    }
 
     $gymStmt = $pdo->prepare("SELECT gym_id, gym_name FROM gyms ORDER BY gym_name");
     $gymStmt->execute();
@@ -128,8 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             // If trainer is not admin, they can only create their own sessions
-            if ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] != $trainerId) {
-                throw new Exception('You can only create sessions for yourself');
+            if ($_SESSION['user_type'] === 'trainer') {
+                // Get the user_id for the selected trainer
+                $trainerUserIdStmt = $pdo->prepare("SELECT user_id FROM trainers WHERE trainer_id = ?");
+                $trainerUserIdStmt->execute([$trainerId]);
+                $trainerUser = $trainerUserIdStmt->fetch();
+                if (!$trainerUser || $trainerUser['user_id'] != $_SESSION['user_id']) {
+                    throw new Exception('You can only create sessions for yourself');
+                }
             }
 
             $stmt = $pdo->prepare("
@@ -175,14 +193,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="form-group">
                         <label for="trainer_id">Trainer *</label>
-                        <select id="trainer_id" name="trainer_id" class="form-control" required>
-                            <option value="">Select Trainer</option>
-                            <?php foreach ($trainers as $trainer): ?>
-                                <option value="<?php echo $trainer['trainer_id']; ?>">
-                                    <?php echo htmlspecialchars($trainer['trainer_name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <?php if ($_SESSION['user_type'] === 'trainer'): ?>
+                            <!-- For trainers, show read-only field -->
+                            <input type="text" class="form-control" value="<?php echo htmlspecialchars($trainers[0]['trainer_name'] ?? 'N/A'); ?>" readonly>
+                            <input type="hidden" name="trainer_id" value="<?php echo htmlspecialchars($trainers[0]['trainer_id'] ?? ''); ?>">
+                            <small class="form-text text-muted">You can only create sessions for yourself</small>
+                        <?php else: ?>
+                            <!-- For admin, show dropdown -->
+                            <select id="trainer_id" name="trainer_id" class="form-control" required>
+                                <option value="">Select Trainer</option>
+                                <?php foreach ($trainers as $trainer): ?>
+                                    <option value="<?php echo $trainer['trainer_id']; ?>">
+                                        <?php echo htmlspecialchars($trainer['trainer_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php endif; ?>
                     </div>
                 </div>
 

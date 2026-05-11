@@ -22,9 +22,17 @@ if (!$sessionId) {
 
 try {
     // Get trainers and gyms for dropdown
-    $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers ORDER BY trainer_name");
-    $trainerStmt->execute();
-    $trainers = $trainerStmt->fetchAll();
+    if ($_SESSION['user_type'] === 'trainer') {
+        // For trainers, only get their own trainer info
+        $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE trainer_id = ? OR user_id = ?");
+        $trainerStmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
+        $trainers = $trainerStmt->fetchAll();
+    } else {
+        // For admin, show all active trainers
+        $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE status = 'Active' ORDER BY trainer_name");
+        $trainerStmt->execute();
+        $trainers = $trainerStmt->fetchAll();
+    }
 
     $gymStmt = $pdo->prepare("SELECT gym_id, gym_name FROM gyms ORDER BY gym_name");
     $gymStmt->execute();
@@ -32,7 +40,9 @@ try {
 
     // Get session details
     $sessionStmt = $pdo->prepare("
-        SELECT * FROM training_sessions WHERE session_id = ?
+        SELECT ts.*, t.user_id as trainer_user_id FROM training_sessions ts
+        LEFT JOIN trainers t ON ts.trainer_id = t.trainer_id
+        WHERE ts.session_id = ?
     ");
     $sessionStmt->execute([$sessionId]);
     $session = $sessionStmt->fetch();
@@ -42,8 +52,8 @@ try {
         redirect('modules/sessions/index.php');
     }
 
-    // Check authorization
-    if ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] != $session['trainer_id']) {
+    // Check authorization - trainers can only edit their own sessions
+    if ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] != $session['trainer_user_id']) {
         setMessage('You do not have permission to edit this session', 'error');
         redirect('modules/sessions/index.php');
     }
@@ -156,8 +166,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             // If trainer, can only update their own sessions
-            if ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] != $trainerId) {
-                throw new Exception('You can only update your own sessions');
+            if ($_SESSION['user_type'] === 'trainer') {
+                // Get the user_id for the selected trainer
+                $trainerUserIdStmt = $pdo->prepare("SELECT user_id FROM trainers WHERE trainer_id = ?");
+                $trainerUserIdStmt->execute([$trainerId]);
+                $trainerUser = $trainerUserIdStmt->fetch();
+                if (!$trainerUser || $trainerUser['user_id'] != $_SESSION['user_id']) {
+                    throw new Exception('You can only update your own sessions');
+                }
             }
 
             $stmt = $pdo->prepare("
@@ -206,14 +222,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         <div class="form-group">
                             <label for="trainer_id">Trainer *</label>
-                            <select id="trainer_id" name="trainer_id" class="form-control" required>
-                                <option value="">Select Trainer</option>
-                                <?php foreach ($trainers as $trainer): ?>
-                                    <option value="<?php echo $trainer['trainer_id']; ?>" <?php echo $session['trainer_id'] == $trainer['trainer_id'] ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($trainer['trainer_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <?php if ($_SESSION['user_type'] === 'trainer'): ?>
+                                <!-- For trainers, show read-only field -->
+                                <input type="text" class="form-control" value="<?php echo htmlspecialchars($session['trainer_id'] ? ($trainers[0]['trainer_name'] ?? 'N/A') : 'N/A'); ?>" readonly>
+                                <input type="hidden" name="trainer_id" value="<?php echo htmlspecialchars($session['trainer_id']); ?>">
+                                <small class="form-text text-muted">You can only edit sessions for yourself</small>
+                            <?php else: ?>
+                                <!-- For admin, show dropdown -->
+                                <select id="trainer_id" name="trainer_id" class="form-control" required>
+                                    <option value="">Select Trainer</option>
+                                    <?php foreach ($trainers as $trainer): ?>
+                                        <option value="<?php echo $trainer['trainer_id']; ?>" <?php echo $session['trainer_id'] == $trainer['trainer_id'] ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($trainer['trainer_name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
                         </div>
                     </div>
 

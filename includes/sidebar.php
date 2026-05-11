@@ -128,7 +128,7 @@ if ($userRole === 'member' && isset($_SESSION['user_id'])) {
                 <li>
                     <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/sessions/">
                         <span class="luf-sidebar__link-icon"><i class="fas fa-calendar-alt"></i></span>
-                        <span>Group Sessions</span>
+                        <span>Training Sessions</span>
                     </a>
                 </li>
             </ul>
@@ -154,7 +154,7 @@ if ($userRole === 'member' && isset($_SESSION['user_id'])) {
                 <li>
                     <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/sessions/">
                         <span class="luf-sidebar__link-icon"><i class="fas fa-calendar-alt"></i></span>
-                        <span>Sessions</span>
+                        <span>Training Sessions</span>
                     </a>
                 </li>
                 <li>

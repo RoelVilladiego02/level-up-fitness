@@ -10,8 +10,18 @@ requireLogin();
 requireRole('member');
 
 $message = getMessage();
-$sessionId = $_POST['session_id'] ?? null;
+$sessionId = $_GET['id'] ?? $_POST['session_id'] ?? null;
 $memberId = $_POST['member_id'] ?? null;
+
+// If member_id not provided, get it from current user
+if (!$memberId) {
+    $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ?");
+    $memberStmt->execute([$_SESSION['user_id']]);
+    $memberData = $memberStmt->fetch();
+    if ($memberData) {
+        $memberId = $memberData['member_id'];
+    }
+}
 
 if (!$sessionId || !$memberId) {
     setMessage('Missing required information', 'error');
