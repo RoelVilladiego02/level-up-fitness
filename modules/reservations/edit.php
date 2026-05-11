@@ -7,9 +7,9 @@
 require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
 
 requireLogin();
-// Members and admins can make reservations
-if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'member') {
-    die('Access denied: Only members and admins can make reservations.');
+// Members, trainers, and admins can edit reservations
+if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'member' && $_SESSION['user_type'] !== 'trainer') {
+    die('Access denied: Only members, trainers, and admins can edit reservations.');
 }
 
 $reservationId = sanitize($_GET['id'] ?? '');
@@ -19,17 +19,18 @@ $formData = [];
 $members = [];
 $equipment = [];
 $isAdmin = $_SESSION['user_type'] === 'admin';
+$isTrainer = $_SESSION['user_type'] === 'trainer';
 $currentMemberId = null;
+$currentTrainerId = null;
 
-// Get current user's member ID if they are a member
-if (!$isAdmin) {
+// Get current user's member ID only if they are a member (not trainer/admin)
+if (!$isAdmin && !$isTrainer) {
     try {
         $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ? AND status = 'Active'");
         $memberStmt->execute([$_SESSION['user_id']]);
         $memberData = $memberStmt->fetch();
         $currentMemberId = $memberData['member_id'] ?? null;
-        
-        // If user is a member but doesn't have a member record, deny access
+
         if (!$currentMemberId) {
             die('Access denied: No active member record found for your account.');
         }
@@ -38,10 +39,22 @@ if (!$isAdmin) {
     }
 }
 
-// Load members and equipment for dropdowns
+// Get current user's trainer ID if they are a trainer
+if ($isTrainer) {
+    try {
+        $trainerStmt = $pdo->prepare("SELECT trainer_id FROM trainers WHERE user_id = ?");
+        $trainerStmt->execute([$_SESSION['user_id']]);
+        $trainerData = $trainerStmt->fetch();
+        $currentTrainerId = $trainerData['trainer_id'] ?? null;
+    } catch (Exception $e) {
+        setMessage('Error loading trainer data: ' . $e->getMessage(), 'error');
+    }
+}
+
+// Load members for dropdowns
 try {
-    // If member, only load their own member info; if admin, load all active members
-    if ($isAdmin) {
+    // Admins and trainers can see all active members; members only see themselves
+    if ($isAdmin || $isTrainer) {
         $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE status = 'Active' ORDER BY member_name");
         $memberStmt->execute();
     } else {
@@ -69,9 +82,12 @@ if (!empty($reservationId)) {
             redirect(APP_URL . 'modules/reservations/');
         }
         
-        // Members can only edit their own reservations
-        if (!$isAdmin && $reservation['member_id'] !== $currentMemberId) {
+        // Members can only edit their own reservations; trainers can only edit reservations assigned to them
+        if (!$isAdmin && !$isTrainer && $reservation['member_id'] !== $currentMemberId) {
             die('Access denied: You can only edit your own reservations.');
+        }
+        if ($isTrainer && $reservation['trainer_id'] !== $currentTrainerId) {
+            die('Access denied: You can only edit reservations assigned to you.');
         }
         
         // Check member status
@@ -92,8 +108,9 @@ if (!empty($reservationId)) {
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
     $formData['reservation_date'] = sanitize($_POST['reservation_date'] ?? '');
-    $formData['start_time'] = sanitize($_POST['start_time'] ?? '');
-    $formData['end_time'] = sanitize($_POST['end_time'] ?? '');
+    // Strip seconds if DB/browser sends HH:MM:SS — we only need HH:MM
+    $formData['start_time'] = substr(sanitize($_POST['start_time'] ?? ''), 0, 5);
+    $formData['end_time'] = substr(sanitize($_POST['end_time'] ?? ''), 0, 5);
     $formData['notes'] = sanitize($_POST['notes'] ?? '');
     $formData['status'] = sanitize($_POST['status'] ?? 'Pending');
 
@@ -306,7 +323,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
                                         <label for="start_time" class="form-label">Start Time *</label>
                                         <input type="time" class="form-control <?php echo isset($errors['start_time']) ? 'is-invalid' : ''; ?>" 
                                                id="start_time" name="start_time" 
-                                               value="<?php echo htmlspecialchars($formData['start_time'] ?? ''); ?>" required>
+                                               value="<?php echo htmlspecialchars(substr($formData['start_time'] ?? '', 0, 5)); ?>" required>
                                         <?php if (isset($errors['start_time'])): ?>
                                             <div class="invalid-feedback"><?php echo $errors['start_time']; ?></div>
                                         <?php endif; ?>
@@ -316,7 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
                                         <label for="end_time" class="form-label">End Time *</label>
                                         <input type="time" class="form-control <?php echo isset($errors['end_time']) ? 'is-invalid' : ''; ?>" 
                                                id="end_time" name="end_time" 
-                                               value="<?php echo htmlspecialchars($formData['end_time'] ?? ''); ?>" required>
+                                               value="<?php echo htmlspecialchars(substr($formData['end_time'] ?? '', 0, 5)); ?>" required>
                                         <?php if (isset($errors['end_time'])): ?>
                                             <div class="invalid-feedback"><?php echo $errors['end_time']; ?></div>
                                         <?php endif; ?>
@@ -364,9 +381,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
                             <hr>
                             <p>
                                 <strong>Status:</strong><br>
-                                <span class="badge badge-<?php 
-                                    echo $reservation['status'] === 'Confirmed' ? 'success' : 
-                                         ($reservation['status'] === 'Pending' ? 'warning' : 'danger');
+                                <span class="badge <?php 
+                                    echo $reservation['status'] === 'Confirmed' ? 'bg-success' : 
+                                         ($reservation['status'] === 'Pending' ? 'bg-warning text-dark' : 'bg-danger');
                                 ?>">
                                     <?php echo htmlspecialchars($reservation['status']); ?>
                                 </span>

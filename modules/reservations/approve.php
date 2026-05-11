@@ -4,7 +4,14 @@
  * Level Up Fitness - Gym Management System
  */
 
-require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
+// Process form BEFORE including header to avoid header already sent error
+require_once dirname(dirname(dirname(__FILE__))) . '/config/config.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/config/database.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/functions.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 requireLogin();
 
@@ -59,6 +66,7 @@ if (!empty($reservationId)) {
     }
 }
 
+// HANDLE FORM SUBMISSION BEFORE HEADER OUTPUT
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
     try {
         $trainerNotes = sanitize($_POST['trainer_notes'] ?? '');
@@ -110,6 +118,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
         setMessage('Error approving reservation: ' . $e->getMessage(), 'error');
     }
 }
+
+// NOW INCLUDE HEADER AFTER FORM PROCESSING
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
 ?>
 
 <div class="container-fluid">

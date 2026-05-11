@@ -88,6 +88,7 @@ function verifyCSRFToken($token) {
  * Redirect to page
  */
 function redirect($location) {
+    ob_end_clean();
     header('Location: ' . $location);
     exit();
 }
@@ -1056,6 +1057,39 @@ function notifyMemberOfReservationApproval($memberUserId, $trainerName, $reserva
         [
             'icon' => 'check-circle',
             'color' => 'success',
+            'entity_type' => 'reservation',
+            'entity_id' => $reservationId,
+            'action_url' => APP_URL . 'modules/reservations/view.php?id=' . $reservationId,
+            'priority' => 'high'
+        ]
+    );
+}
+
+/**
+ * Notify member of reservation rejection
+ * @param int $memberUserId - Member user ID
+ * @param string $trainerName - Trainer name
+ * @param string $reservationId - Reservation ID
+ * @param string $reservationDate - Reservation date
+ * @param string $startTime - Start time
+ * @param string $rejectionReason - Reason for rejection
+ * @return bool - Success status
+ */
+function notifyMemberOfReservationRejection($memberUserId, $trainerName, $reservationId, $reservationDate, $startTime, $rejectionReason = '') {
+    $title = '❌ Trainer Time Request Declined';
+    $message = 'Your trainer time request with ' . $trainerName . ' for ' . formatDate($reservationDate) . ' at ' . substr($startTime, 0, 5) . ' has been declined.';
+    if (!empty($rejectionReason)) {
+        $message .= ' Reason: ' . $rejectionReason;
+    }
+    
+    return createNotification(
+        $memberUserId,
+        'reservation',
+        $title,
+        $message,
+        [
+            'icon' => 'times-circle',
+            'color' => 'danger',
             'entity_type' => 'reservation',
             'entity_id' => $reservationId,
             'action_url' => APP_URL . 'modules/reservations/view.php?id=' . $reservationId,

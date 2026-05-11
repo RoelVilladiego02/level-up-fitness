@@ -264,19 +264,19 @@ try {
 
             <div class="card">
                 <div class="card-header bg-light">
-                    <h5 class=\"mb-0\"><i class=\"fas fa-table\"></i> 
+                    <h5 class="mb-0"><i class="fas fa-table"></i> 
                         <?php echo $isTrainer ? 'Pending Requests' : 'Reservations List'; ?>
                     </h5>
                 </div>
-                <div class=\"card-body\">
+                <div class="card-body">
                     <?php if (empty($reservations)): ?>
-                        <div class=\"alert alert-info\">
-                            <i class=\"fas fa-info-circle\"></i> 
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
                             <?php 
                             if ($isTrainer) {
                                 echo 'No pending trainer time requests at the moment.';
                             } else {
-                                echo 'No reservations found. <a href=\"' . APP_URL . 'modules/reservations/add.php\">Create a reservation</a>';
+                                echo 'No reservations found. <a href="' . APP_URL . 'modules/reservations/add.php">Create a reservation</a>';
                             }
                             ?>
                         </div>
@@ -306,11 +306,11 @@ try {
                                                 <?php echo substr($reservation['end_time'], 0, 5); ?>
                                             </td>
                                             <td>
-                                                <span class="badge badge-<?php 
-                                                    echo $reservation['status'] === 'Confirmed' ? 'success' : 
-                                                         ($reservation['status'] === 'Pending' ? 'warning' : 'danger');
+                                                <span class="badge <?php 
+                                                    echo $reservation['status'] === 'Confirmed' ? 'bg-success' : 
+                                                         ($reservation['status'] === 'Pending' ? 'bg-warning text-dark' : 'bg-danger');
                                                 ?>">
-                                                    <?php echo htmlspecialchars($reservation['status']); ?>
+                                                    <?php echo htmlspecialchars($reservation['status'] ?? 'N/A'); ?>
                                                 </span>
                                             </td>
                                             <td>
@@ -318,6 +318,16 @@ try {
                                                    class="btn btn-sm btn-info" title="View">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
+                                                <?php if (($isTrainer || $isAdmin) && $reservation['status'] === 'Pending'): ?>
+                                                    <a href="<?php echo APP_URL; ?>modules/reservations/approve.php?id=<?php echo $reservation['reservation_id']; ?>" 
+                                                       class="btn btn-sm btn-success" title="Approve">
+                                                        <i class="fas fa-check"></i>
+                                                    </a>
+                                                    <a href="<?php echo APP_URL; ?>modules/reservations/reject.php?id=<?php echo $reservation['reservation_id']; ?>" 
+                                                       class="btn btn-sm btn-danger" title="Reject">
+                                                        <i class="fas fa-times"></i>
+                                                    </a>
+                                                <?php endif; ?>
                                                 <a href="<?php echo APP_URL; ?>modules/reservations/edit.php?id=<?php echo $reservation['reservation_id']; ?>" 
                                                    class="btn btn-sm btn-warning" title="Edit">
                                                     <i class="fas fa-edit"></i>

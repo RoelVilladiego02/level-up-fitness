@@ -90,9 +90,12 @@ if (!empty($reservationId)) {
             
             <div class="page-header">
                 <div class="float-end">
-                    <?php if ($isTrainer && $reservation['status'] === 'Pending'): ?>
+                    <?php if (($isTrainer || $isAdmin) && $reservation && $reservation['status'] === 'Pending'): ?>
                         <a href="<?php echo APP_URL; ?>modules/reservations/approve.php?id=<?php echo $reservationId; ?>" class="btn btn-success btn-sm">
                             <i class="fas fa-check"></i> Approve
+                        </a>
+                        <a href="<?php echo APP_URL; ?>modules/reservations/reject.php?id=<?php echo $reservationId; ?>" class="btn btn-danger btn-sm">
+                            <i class="fas fa-times"></i> Reject
                         </a>
                     <?php endif; ?>
                     <a href="<?php echo APP_URL; ?>modules/reservations/edit.php?id=<?php echo $reservationId; ?>" class="btn btn-warning btn-sm">
@@ -135,11 +138,11 @@ if (!empty($reservationId)) {
                             <hr>
                             <p>
                                 <strong>Status:</strong><br>
-                                <span class="badge badge-<?php 
-                                    echo $reservation['status'] === 'Confirmed' ? 'success' : 
-                                         ($reservation['status'] === 'Pending' ? 'warning' : 'danger');
+                                <span class="badge <?php 
+                                    echo $reservation['status'] === 'Confirmed' ? 'bg-success' : 
+                                         ($reservation['status'] === 'Pending' ? 'bg-warning text-dark' : 'bg-danger');
                                 ?>" style="font-size: 14px;">
-                                    <?php echo htmlspecialchars($reservation['status']); ?>
+                                    <?php echo htmlspecialchars($reservation['status'] ?? 'N/A'); ?>
                                 </span>
                             </p>
                             <?php if (!empty($reservation['notes'])): ?>
@@ -226,11 +229,11 @@ if (!empty($reservationId)) {
                             <h5 class="mb-0">Status</h5>
                         </div>
                         <div class="card-body text-center">
-                            <span class="badge badge-<?php 
-                                echo $reservation['status'] === 'Confirmed' ? 'success' : 
-                                     ($reservation['status'] === 'Pending' ? 'warning' : 'danger');
-                            ?>" style="font-size: 18px;">
-                                <?php echo htmlspecialchars($reservation['status']); ?>
+                            <span class="badge <?php 
+                                echo $reservation['status'] === 'Confirmed' ? 'bg-success' : 
+                                     ($reservation['status'] === 'Pending' ? 'bg-warning text-dark' : 'bg-danger');
+                            ?>" style="font-size: 18px; padding: 10px 15px;">
+                                <?php echo htmlspecialchars($reservation['status'] ?? 'N/A'); ?>
                             </span>
                         </div>
                     </div>

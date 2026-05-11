@@ -15,6 +15,7 @@ if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'member') {
 $errors = [];
 $formData = [];
 $trainers = [];
+$members = [];
 $isAdmin = $_SESSION['user_type'] === 'admin';
 $currentMemberId = null;
 $memberTrainer = null;
@@ -36,15 +37,16 @@ if (!$isAdmin) {
     }
 }
 
-// Load trainers for dropdown
+// Load members (admin only) and trainers for dropdowns
 try {
     if ($isAdmin) {
-        $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE status = 'Active' ORDER BY trainer_name");
-        $trainerStmt->execute();
-    } else {
-        $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE status = 'Active' ORDER BY trainer_name");
-        $trainerStmt->execute();
+        $memberListStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE status = 'Active' ORDER BY member_name");
+        $memberListStmt->execute();
+        $members = $memberListStmt->fetchAll();
     }
+
+    $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE status = 'Active' ORDER BY trainer_name");
+    $trainerStmt->execute();
     $trainers = $trainerStmt->fetchAll();
 } catch (Exception $e) {
     setMessage('Error loading data: ' . $e->getMessage(), 'error');
@@ -445,6 +447,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <i class="fas fa-hourglass-half"></i> <?php echo $errors['duration']; ?>
                                     </div>
                                 <?php endif; ?>
+
+                                <div class="mb-3">
+                                    <label for="purpose" class="form-label">Purpose</label>
+                                    <select class="form-select" id="purpose" name="purpose">
+                                        <option value="" <?php echo empty($formData['purpose']) ? 'selected' : ''; ?>>-- Not specified --</option>
+                                        <option value="Strength Training" <?php echo ($formData['purpose'] ?? '') === 'Strength Training' ? 'selected' : ''; ?>>Strength Training</option>
+                                        <option value="Cardio" <?php echo ($formData['purpose'] ?? '') === 'Cardio' ? 'selected' : ''; ?>>Cardio</option>
+                                        <option value="Flexibility" <?php echo ($formData['purpose'] ?? '') === 'Flexibility' ? 'selected' : ''; ?>>Flexibility</option>
+                                        <option value="Weight Loss" <?php echo ($formData['purpose'] ?? '') === 'Weight Loss' ? 'selected' : ''; ?>>Weight Loss</option>
+                                        <option value="Muscle Gain" <?php echo ($formData['purpose'] ?? '') === 'Muscle Gain' ? 'selected' : ''; ?>>Muscle Gain</option>
+                                        <option value="Rehabilitation" <?php echo ($formData['purpose'] ?? '') === 'Rehabilitation' ? 'selected' : ''; ?>>Rehabilitation</option>
+                                        <option value="General Fitness" <?php echo ($formData['purpose'] ?? '') === 'General Fitness' ? 'selected' : ''; ?>>General Fitness</option>
+                                        <option value="Nutrition Consultation" <?php echo ($formData['purpose'] ?? '') === 'Nutrition Consultation' ? 'selected' : ''; ?>>Nutrition Consultation</option>
+                                        <option value="Other" <?php echo ($formData['purpose'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
+                                    </select>
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="fas fa-info-circle"></i> Helps your trainer prepare for your session.
+                                    </small>
+                                </div>
 
                                 <div class="mb-3">
                                     <label for="notes" class="form-label">Additional Notes</label>

@@ -198,6 +198,10 @@ try {
                                                    class="btn btn-sm btn-success" title="Approve">
                                                     <i class="fas fa-check"></i>
                                                 </a>
+                                                <a href="<?php echo APP_URL; ?>modules/reservations/reject.php?id=<?php echo $request['reservation_id']; ?>" 
+                                                   class="btn btn-sm btn-danger" title="Reject">
+                                                    <i class="fas fa-times"></i>
+                                                </a>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
