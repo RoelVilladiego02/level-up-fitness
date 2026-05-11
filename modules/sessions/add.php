@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             setMessage('Session created successfully!', 'success');
-            redirect('modules/sessions/index.php');
+            redirect(APP_URL . 'modules/sessions/index.php');
         } catch (Exception $e) {
             setMessage('Error creating session: ' . $e->getMessage(), 'error');
         }

@@ -14,7 +14,7 @@ $sessionId = $_GET['id'] ?? null;
 
 if (!$sessionId) {
     setMessage('Session ID is required', 'error');
-    redirect('modules/sessions/index.php');
+    redirect(APP_URL . 'modules/sessions/index.php');
 }
 
 try {
@@ -25,7 +25,7 @@ try {
 
     if (!$memberData) {
         setMessage('Member profile not found', 'error');
-        redirect('modules/sessions/index.php');
+        redirect(APP_URL . 'modules/sessions/index.php');
     }
 
     $memberId = $memberData['member_id'];
@@ -38,7 +38,7 @@ try {
     $checkStmt->execute([$sessionId, $memberId]);
     if (!$checkStmt->fetch()) {
         setMessage('You are not enrolled in this session', 'error');
-        redirect('modules/sessions/view.php?id=' . $sessionId);
+        redirect(APP_URL . 'modules/sessions/view.php?id=' . $sessionId);
     }
 
     // Check if session has already started
@@ -53,7 +53,7 @@ try {
         $sessionDateTime = strtotime($session['session_date'] . ' ' . $session['session_time']);
         if (time() > $sessionDateTime) {
             setMessage('Cannot unenroll from sessions that have already started', 'error');
-            redirect('modules/sessions/view.php?id=' . $sessionId);
+            redirect(APP_URL . 'modules/sessions/view.php?id=' . $sessionId);
         }
     }
 
@@ -64,14 +64,11 @@ try {
     ");
     $unenrollStmt->execute([$sessionId, $memberId]);
 
-    // Log activity
-    logActivity('Unenrolled from training session', 'training_sessions', $sessionId);
-
     setMessage('Successfully unenrolled from the session!', 'success');
-    redirect('modules/sessions/view.php?id=' . $sessionId);
+    redirect(APP_URL . 'modules/sessions/view.php?id=' . $sessionId);
 
 } catch (Exception $e) {
     setMessage('Error unenrolling from session: ' . $e->getMessage(), 'error');
-    redirect('modules/sessions/index.php');
+    redirect(APP_URL . 'modules/sessions/index.php');
 }
 ?>

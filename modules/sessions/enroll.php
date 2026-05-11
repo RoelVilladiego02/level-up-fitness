@@ -25,7 +25,7 @@ if (!$memberId) {
 
 if (!$sessionId || !$memberId) {
     setMessage('Missing required information', 'error');
-    redirect('modules/sessions/index.php');
+    redirect(APP_URL . 'modules/sessions/index.php');
 }
 
 try {
@@ -36,7 +36,7 @@ try {
 
     if (!$memberData || $memberData['member_id'] != $memberId) {
         setMessage('You can only enroll for yourself', 'error');
-        redirect('modules/sessions/index.php');
+        redirect(APP_URL . 'modules/sessions/index.php');
     }
 
     // Check if already enrolled
@@ -47,7 +47,7 @@ try {
     $checkStmt->execute([$sessionId, $memberId]);
     if ($checkStmt->fetch()) {
         setMessage('You are already enrolled in this session', 'error');
-        redirect('modules/sessions/view.php?id=' . $sessionId);
+        redirect(APP_URL . 'modules/sessions/view.php?id=' . $sessionId);
     }
 
     // Check if session has capacity
@@ -63,7 +63,7 @@ try {
 
     if ($capacity && $capacity['current_count'] >= $capacity['max_capacity']) {
         setMessage('This session is full', 'error');
-        redirect('modules/sessions/view.php?id=' . $sessionId);
+        redirect(APP_URL . 'modules/sessions/view.php?id=' . $sessionId);
     }
 
     // Enroll in session
@@ -74,7 +74,7 @@ try {
     $enrollStmt->execute([$sessionId, $memberId]);
 
     setMessage('Successfully enrolled in the session!', 'success');
-    redirect('modules/sessions/view.php?id=' . $sessionId);
+    redirect(APP_URL . 'modules/sessions/view.php?id=' . $sessionId);
 
 } catch (Exception $e) {
     setMessage('Error enrolling in session: ' . $e->getMessage(), 'error');

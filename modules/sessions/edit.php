@@ -17,7 +17,7 @@ $sessionId = $_GET['id'] ?? null;
 
 if (!$sessionId) {
     setMessage('Session ID is required', 'error');
-    redirect('modules/sessions/index.php');
+    redirect(APP_URL . 'modules/sessions/index.php');
 }
 
 try {
@@ -49,13 +49,13 @@ try {
 
     if (!$session) {
         setMessage('Session not found', 'error');
-        redirect('modules/sessions/index.php');
+        redirect(APP_URL . 'modules/sessions/index.php');
     }
 
     // Check authorization - trainers can only edit their own sessions
     if ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] != $session['trainer_user_id']) {
         setMessage('You do not have permission to edit this session', 'error');
-        redirect('modules/sessions/index.php');
+        redirect(APP_URL . 'modules/sessions/index.php');
     }
 } catch (Exception $e) {
     setMessage('Error loading session: ' . $e->getMessage(), 'error');
@@ -190,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             setMessage('Session updated successfully!', 'success');
-            redirect('modules/sessions/view.php?id=' . $sessionId);
+            redirect(APP_URL . 'modules/sessions/view.php?id=' . $sessionId);
         } catch (Exception $e) {
             setMessage('Error updating session: ' . $e->getMessage(), 'error');
         }

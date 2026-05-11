@@ -191,20 +191,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($memberId)) {
                                         <select class="form-select" id="status" name="status">
                                             <option value="Active" <?php echo ($formData['status'] ?? 'Active') === 'Active' ? 'selected' : ''; ?>>Active</option>
                                             <option value="Inactive" <?php echo ($formData['status'] ?? '') === 'Inactive' ? 'selected' : ''; ?>>Inactive</option>
+                                            <option value="Expired" <?php echo ($formData['status'] ?? '') === 'Expired' ? 'selected' : ''; ?>>Expired</option>
                                         </select>
                                     </div>
 
                                     <div class="col-md-6 mb-3"></div>
-                                </div>
-
-                                    <div class="col-md-6 mb-3">
-                                        <label for="status" class="form-label">Status</label>
-                                        <select class="form-select" id="status" name="status">
-                                            <option value="Active" <?php echo ($formData['status'] ?? 'Active') === 'Active' ? 'selected' : ''; ?>>Active</option>
-                                            <option value="Inactive" <?php echo ($formData['status'] ?? '') === 'Inactive' ? 'selected' : ''; ?>>Inactive</option>
-                                            <option value="Expired" <?php echo ($formData['status'] ?? '') === 'Expired' ? 'selected' : ''; ?>>Expired</option>
-                                        </select>
-                                    </div>
                                 </div>
 
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">

@@ -31,6 +31,15 @@ $itemsPerPage = ITEMS_PER_PAGE;
 $offset = ($page - 1) * $itemsPerPage;
 $totalRecords = 0;
 $totalPages = 1;
+$memberMemberId = null;
+
+// Get member_id if user is a member
+if ($_SESSION['user_type'] === 'member') {
+    $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ?");
+    $memberStmt->execute([$_SESSION['user_id']]);
+    $memberData = $memberStmt->fetch();
+    $memberMemberId = $memberData['member_id'] ?? null;
+}
 
 try {
     // Build query with joins to get member and trainer names
@@ -40,6 +49,12 @@ try {
               LEFT JOIN trainers t ON wp.trainer_id = t.trainer_id
               WHERE 1=1";
     $params = [];
+    
+    // Members can only view their own plans
+    if ($_SESSION['user_type'] === 'member') {
+        $query .= " AND wp.member_id = ?";
+        $params[] = $memberMemberId;
+    }
 
     // Search filter
     if (!empty($searchTerm)) {

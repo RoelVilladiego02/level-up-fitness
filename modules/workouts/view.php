@@ -12,6 +12,7 @@ $planId = sanitize($_GET['id'] ?? '');
 $plan = null;
 $member = null;
 $trainer = null;
+$memberMemberId = null;
 
 if (!empty($planId)) {
     try {
@@ -22,6 +23,19 @@ if (!empty($planId)) {
         if (!$plan) {
             setMessage('Plan not found', 'error');
             redirect(APP_URL . 'modules/workouts/');
+        }
+        
+        // Access control: members can only view their own plans
+        if ($_SESSION['user_type'] === 'member') {
+            $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ?");
+            $memberStmt->execute([$_SESSION['user_id']]);
+            $memberData = $memberStmt->fetch();
+            $memberMemberId = $memberData['member_id'] ?? null;
+            
+            if ($plan['member_id'] !== $memberMemberId) {
+                setMessage('Access denied: You can only view your own workout plans', 'error');
+                redirect(APP_URL . 'modules/workouts/');
+            }
         }
 
         // Get member info
@@ -95,7 +109,17 @@ if (!empty($planId)) {
                             <hr>
                             <p>
                                 <strong>Plan Details:</strong><br>
-                                <?php echo nl2br(htmlspecialchars($plan['plan_details'])); ?>
+                                <?php 
+                                    $details = json_decode($plan['plan_details'], true);
+                                    if (is_array($details)) {
+                                        foreach ($details as $key => $value) {
+                                            $label = str_replace('_', ' ', ucwords($key));
+                                            echo '<strong>' . htmlspecialchars($label) . ':</strong> ' . htmlspecialchars($value) . '<br>';
+                                        }
+                                    } else {
+                                        echo nl2br(htmlspecialchars($plan['plan_details']));
+                                    }
+                                ?>
                             </p>
                         </div>
                     </div>

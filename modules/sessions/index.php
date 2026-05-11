@@ -27,16 +27,31 @@ try {
     $trainerStmt->execute();
     $trainers = $trainerStmt->fetchAll();
     
-    // If member, get their enrollment data
+    // Get member's assigned trainer if user is a member
+    $memberTrainerId = null;
+    $memberId = null;
+    
     if ($_SESSION['user_type'] === 'member') {
-        $memberEnrollStmt = $pdo->prepare("
-            SELECT session_id FROM training_session_attendees 
-            WHERE member_id = ?
+        $memberStmt = $pdo->prepare("
+            SELECT trainer_id, member_id FROM members 
+            WHERE user_id = ?
         ");
-        $memberEnrollStmt->execute([$_SESSION['user_id']]);
-        $enrolledSessions = $memberEnrollStmt->fetchAll();
-        foreach ($enrolledSessions as $enrollment) {
-            $memberEnrollments[$enrollment['session_id']] = true;
+        $memberStmt->execute([$_SESSION['user_id']]);
+        $memberData = $memberStmt->fetch();
+        $memberTrainerId = $memberData['trainer_id'] ?? null;
+        $memberId = $memberData['member_id'] ?? null;
+        
+        // Get member's enrollment data
+        if ($memberId) {
+            $memberEnrollStmt = $pdo->prepare("
+                SELECT session_id FROM training_session_attendees 
+                WHERE member_id = ?
+            ");
+            $memberEnrollStmt->execute([$memberId]);
+            $enrolledSessions = $memberEnrollStmt->fetchAll();
+            foreach ($enrolledSessions as $enrollment) {
+                $memberEnrollments[$enrollment['session_id']] = true;
+            }
         }
     }
 
@@ -53,6 +68,10 @@ try {
     if ($_SESSION['user_type'] === 'trainer') {
         $query .= " AND t.user_id = ?";
         $params[] = $_SESSION['user_id'];
+    } elseif ($_SESSION['user_type'] === 'member' && $memberTrainerId) {
+        // Members only see sessions from their assigned trainer
+        $query .= " AND ts.trainer_id = ?";
+        $params[] = $memberTrainerId;
     }
 
     // Search filter
@@ -118,6 +137,7 @@ try {
                                    placeholder="Search by session name..." 
                                    value="<?php echo htmlspecialchars($searchTerm); ?>">
                         </div>
+                        <?php if ($_SESSION['user_type'] !== 'member'): ?>
                         <div class="col-md-3">
                             <select name="trainer" class="form-select">
                                 <option value="">All Trainers</option>
@@ -128,6 +148,20 @@ try {
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <?php else: ?>
+                        <!-- Members see only their trainer's sessions -->
+                        <div class="col-md-3">
+                            <div class="alert alert-info mb-0">
+                                <?php 
+                                    if ($memberTrainerId) {
+                                        echo "Viewing sessions from your trainer";
+                                    } else {
+                                        echo "No trainer assigned";
+                                    }
+                                ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                         <div class="col-md-3">
                             <select name="status" class="form-select">
                                 <option value="">All Status</option>
@@ -154,6 +188,15 @@ try {
             </div>
 
             <?php displayMessage(); ?>
+
+            <!-- Alert for members without trainer -->
+            <?php if ($_SESSION['user_type'] === 'member' && !$memberTrainerId): ?>
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle"></i> <strong>No Trainer Assigned</strong>
+                    <p class="mb-0">You currently don't have a trainer assigned. Please contact the admin to assign a trainer. Once assigned, you'll see your trainer's training sessions here.</p>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
 
             <!-- Sessions Table -->
             <div class="card">
@@ -213,7 +256,15 @@ try {
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">No sessions found</td>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <?php 
+                                            if ($_SESSION['user_type'] === 'member' && !$memberTrainerId) {
+                                                echo "No trainer assigned. Contact admin to get started.";
+                                            } else {
+                                                echo "No sessions found";
+                                            }
+                                        ?>
+                                    </td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>

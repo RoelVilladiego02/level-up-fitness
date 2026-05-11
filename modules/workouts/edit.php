@@ -27,6 +27,19 @@ if (!empty($planId)) {
             redirect(APP_URL . 'modules/workouts/');
         }
         
+        // Access control: members can only edit their own plans
+        if ($_SESSION['user_type'] === 'member') {
+            $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ?");
+            $memberStmt->execute([$_SESSION['user_id']]);
+            $memberData = $memberStmt->fetch();
+            $memberMemberId = $memberData['member_id'] ?? null;
+            
+            if ($plan['member_id'] !== $memberMemberId) {
+                setMessage('Access denied: You can only edit your own workout plans', 'error');
+                redirect(APP_URL . 'modules/workouts/');
+            }
+        }
+        
         // Parse JSON fields for display
         $schedule = json_decode($plan['weekly_schedule'], true);
         $formData = $plan;

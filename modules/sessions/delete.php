@@ -13,7 +13,7 @@ $sessionId = $_GET['id'] ?? null;
 
 if (!$sessionId) {
     setMessage('Session ID is required', 'error');
-    redirect('modules/sessions/index.php');
+    redirect(APP_URL . 'modules/sessions/index.php');
 }
 
 try {
@@ -28,13 +28,13 @@ try {
 
     if (!$session) {
         setMessage('Session not found', 'error');
-        redirect('modules/sessions/index.php');
+        redirect(APP_URL . 'modules/sessions/index.php');
     }
 
     // Check authorization - trainers can only delete their own sessions
     if ($_SESSION['user_type'] === 'trainer' && $_SESSION['user_id'] != $session['trainer_user_id']) {
         setMessage('You do not have permission to delete this session', 'error');
-        redirect('modules/sessions/index.php');
+        redirect(APP_URL . 'modules/sessions/index.php');
     }
 
     // Delete attendees first (foreign key)
@@ -46,10 +46,10 @@ try {
     $deleteStmt->execute([$sessionId]);
 
     setMessage('Session deleted successfully!', 'success');
-    redirect('modules/sessions/index.php');
+    redirect(APP_URL . 'modules/sessions/index.php');
 
 } catch (Exception $e) {
     setMessage('Error deleting session: ' . $e->getMessage(), 'error');
-    redirect('modules/sessions/index.php');
+    redirect(APP_URL . 'modules/sessions/index.php');
 }
 ?>
