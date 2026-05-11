@@ -31,11 +31,11 @@ $totalRecords = 0;
 $totalPages = 1;
 
 try {
-    // Build query
-    $query = "SELECT sr.*, m.member_name, m.email, t.trainer_name
-              FROM session_requests sr
-              JOIN members m ON sr.member_id = m.member_id
-              JOIN trainers t ON sr.trainer_id = t.trainer_id
+    // Build query - query reservations table (trainer time slot system)
+    $query = "SELECT r.*, m.member_name, m.email, t.trainer_name
+              FROM reservations r
+              LEFT JOIN members m ON r.member_id = m.member_id
+              LEFT JOIN trainers t ON r.trainer_id = t.trainer_id
               WHERE 1=1";
     $params = [];
 
@@ -48,25 +48,25 @@ try {
             setMessage('Trainer profile not found', 'error');
             redirect(APP_URL . 'dashboard/');
         }
-        $query .= " AND sr.trainer_id = ?";
+        $query .= " AND r.trainer_id = ?";
         $params[] = $trainerData['trainer_id'];
     }
 
     // Search filter
     if (!empty($searchTerm)) {
-        $query .= " AND (m.member_name LIKE ? OR m.email LIKE ? OR sr.purpose LIKE ?)";
+        $query .= " AND (m.member_name LIKE ? OR m.email LIKE ? OR r.purpose LIKE ?)";
         $search = "%$searchTerm%";
         $params = array_merge($params, [$search, $search, $search]);
     }
 
     // Status filter
     if (!empty($filterStatus)) {
-        $query .= " AND sr.status = ?";
+        $query .= " AND r.status = ?";
         $params[] = $filterStatus;
     }
 
     // Get total records
-    $countQuery = str_replace("SELECT sr.*, m.member_name, m.email, t.trainer_name", "SELECT COUNT(*) as cnt", $query);
+    $countQuery = str_replace("SELECT r.*, m.member_name, m.email, t.trainer_name", "SELECT COUNT(*) as cnt", $query);
     $countStmt = $pdo->prepare($countQuery);
     $countStmt->execute($params);
     $countResult = $countStmt->fetch();
@@ -80,13 +80,13 @@ try {
     $offset = ($page - 1) * $itemsPerPage;
 
     // Get records
-    $query .= " ORDER BY sr.created_at DESC LIMIT " . (int)$itemsPerPage . " OFFSET " . (int)$offset;
+    $query .= " ORDER BY r.created_at DESC LIMIT " . (int)$itemsPerPage . " OFFSET " . (int)$offset;
 
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $requests = $stmt->fetchAll();
 } catch (Exception $e) {
-    setMessage('Error loading session requests: ' . $e->getMessage(), 'error');
+    setMessage('Error loading trainer time requests: ' . $e->getMessage(), 'error');
 }
 ?>
 
@@ -97,8 +97,8 @@ try {
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
             
             <div class="page-header">
-                <h1><i class="fas fa-calendar-check"></i> Session Requests</h1>
-                <p>Manage training session requests from members</p>
+                <h1><i class="fas fa-calendar-check"></i> Trainer Time Requests</h1>
+                <p>Manage member requests for training time slots</p>
             </div>
 
             <?php displayMessage(); ?>
@@ -132,7 +132,7 @@ try {
             <!-- Requests Table -->
             <div class="card">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Session Requests List</h5>
+                    <h5 class="mb-0">Trainer Time Requests</h5>
                     <small class="text-muted">Total: <?php echo $totalRecords; ?></small>
                 </div>
                 <div class="table-responsive">
@@ -157,11 +157,16 @@ try {
                                             <small class="text-muted"><?php echo htmlspecialchars($request['email']); ?></small>
                                         </td>
                                         <td>
-                                            <?php echo formatDate($request['requested_date']); ?><br>
-                                            <strong><?php echo date('H:i', strtotime($request['requested_time'])); ?></strong>
+                                            <?php echo formatDate($request['reservation_date']); ?><br>
+                                            <strong><?php echo date('H:i', strtotime($request['start_time'])); ?></strong>
                                         </td>
                                         <td>
-                                            <?php echo $request['duration']; ?> min
+                                            <?php
+                                            $start = strtotime($request['start_time']);
+                                            $end = strtotime($request['end_time']);
+                                            $duration = ($end - $start) / 60;
+                                            echo $duration . ' min';
+                                            ?>
                                         </td>
                                         <td>
                                             <?php echo htmlspecialchars($request['purpose'] ?? 'N/A'); ?>
@@ -184,18 +189,14 @@ try {
                                             <small class="text-muted"><?php echo formatDate($request['created_at']); ?></small>
                                         </td>
                                         <td>
-                                            <a href="<?php echo APP_URL; ?>modules/attendance/view.php?id=<?php echo $request['request_id']; ?>" 
+                                            <a href="<?php echo APP_URL; ?>modules/reservations/view.php?id=<?php echo $request['reservation_id']; ?>" 
                                                class="btn btn-sm btn-info" title="View">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             <?php if ($request['status'] === 'Pending'): ?>
-                                                <a href="<?php echo APP_URL; ?>modules/attendance/approve.php?id=<?php echo $request['request_id']; ?>" 
+                                                <a href="<?php echo APP_URL; ?>modules/reservations/approve.php?id=<?php echo $request['reservation_id']; ?>" 
                                                    class="btn btn-sm btn-success" title="Approve">
                                                     <i class="fas fa-check"></i>
-                                                </a>
-                                                <a href="<?php echo APP_URL; ?>modules/attendance/reject.php?id=<?php echo $request['request_id']; ?>" 
-                                                   class="btn btn-sm btn-danger" title="Reject">
-                                                    <i class="fas fa-times"></i>
                                                 </a>
                                             <?php endif; ?>
                                         </td>
@@ -204,7 +205,7 @@ try {
                             <?php else: ?>
                                 <tr>
                                     <td colspan="7" class="text-center text-muted py-4">
-                                        <i class="fas fa-inbox"></i> No session requests found
+                                        <i class="fas fa-inbox"></i> No pending trainer time requests
                                     </td>
                                 </tr>
                             <?php endif; ?>

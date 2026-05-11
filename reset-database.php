@@ -168,6 +168,24 @@ try {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
     }
+
+    // Check if trainer_id column exists in reservations table, if not add it
+    $result = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'reservations' AND COLUMN_NAME = 'trainer_id'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Adding trainer_id column to reservations...\n";
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN trainer_id VARCHAR(50) NULL AFTER equipment_id");
+        $pdo->exec("ALTER TABLE reservations ADD CONSTRAINT fk_reservations_trainer_id FOREIGN KEY (trainer_id) REFERENCES trainers(trainer_id) ON DELETE CASCADE");
+        $pdo->exec("ALTER TABLE reservations ADD INDEX idx_trainer_id (trainer_id)");
+    }
+
+    // Check if purpose column exists in reservations table, if not add it
+    $result = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'reservations' AND COLUMN_NAME = 'purpose'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Adding purpose column to reservations...\n";
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN purpose VARCHAR(255) NULL AFTER end_time");
+    }
     
     echo "✓ Schema check complete\n\n";
     

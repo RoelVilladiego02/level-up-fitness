@@ -369,6 +369,11 @@ function initNotificationSystem() {
 $(document).ready(function() {
     if ($('#notificationBell').length > 0) {
         initNotificationSystem();
+        
+        // Refresh notifications when dropdown is shown
+        $('#notificationBell').on('click', function() {
+            loadUnreadNotifications();
+        });
     }
 });
 

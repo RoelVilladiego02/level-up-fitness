@@ -7,26 +7,28 @@
 require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
 
 requireLogin();
-// Members and admins can make reservations
-if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'member') {
-    die('Access denied: Only members and admins can make reservations.');
+// Members, trainers, and admins can view reservations
+if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'member' && $_SESSION['user_type'] !== 'trainer') {
+    die('Access denied: Only members, trainers, and admins can view reservations.');
 }
 
 $reservations = [];
 $message = getMessage();
 $searchTerm = $_GET['search'] ?? '';
 $filterStatus = $_GET['status'] ?? '';
-$filterEquipment = $_GET['equipment'] ?? '';
 $page = $_GET['page'] ?? 1;
 $itemsPerPage = ITEMS_PER_PAGE;
 $offset = ($page - 1) * $itemsPerPage;
 $totalRecords = 0;
 $totalPages = 1;
 $isAdmin = $_SESSION['user_type'] === 'admin';
+$isTrainer = $_SESSION['user_type'] === 'trainer';
+$isMember = $_SESSION['user_type'] === 'member';
 $currentMemberId = null;
+$currentTrainerId = null;
 
 // Get current user's member ID if they are a member
-if (!$isAdmin) {
+if ($isMember) {
     try {
         $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ? AND status = 'Active'");
         $memberStmt->execute([$_SESSION['user_id']]);
@@ -42,24 +44,46 @@ if (!$isAdmin) {
     }
 }
 
+// Get current user's trainer ID if they are a trainer
+if ($isTrainer) {
+    try {
+        $trainerStmt = $pdo->prepare("SELECT trainer_id FROM trainers WHERE user_id = ?");
+        $trainerStmt->execute([$_SESSION['user_id']]);
+        $trainerData = $trainerStmt->fetch();
+        $currentTrainerId = $trainerData['trainer_id'] ?? null;
+        
+        if (!$currentTrainerId) {
+            die('Access denied: No trainer record found for your account.');
+        }
+    } catch (Exception $e) {
+        setMessage('Error loading trainer data: ' . $e->getMessage(), 'error');
+    }
+}
+
 try {
     // Build query
-    $query = "SELECT r.*, m.member_name, e.equipment_name
+    $query = "SELECT r.*, m.member_name, t.trainer_name
               FROM reservations r
               LEFT JOIN members m ON r.member_id = m.member_id
-              LEFT JOIN equipment e ON r.equipment_id = e.equipment_id
+              LEFT JOIN trainers t ON r.trainer_id = t.trainer_id
               WHERE 1=1";
     $params = [];
     
     // Members can only see their own reservations
-    if (!$isAdmin) {
+    if ($isMember) {
         $query .= " AND r.member_id = ?";
         $params[] = $currentMemberId;
+    }
+    
+    // Trainers can only see reservations assigned to them
+    if ($isTrainer) {
+        $query .= " AND r.trainer_id = ?";
+        $params[] = $currentTrainerId;
     }
 
     // Search filter
     if (!empty($searchTerm)) {
-        $query .= " AND (r.reservation_id LIKE ? OR LOWER(m.member_name) LIKE ? OR LOWER(e.equipment_name) LIKE ?)";
+        $query .= " AND (r.reservation_id LIKE ? OR LOWER(m.member_name) LIKE ? OR LOWER(t.trainer_name) LIKE ?)";
         $search = "%".strtolower($searchTerm)."%";
         $params = array_merge($params, [$search, $search, $search]);
     }
@@ -70,24 +94,26 @@ try {
         $params[] = $filterStatus;
     }
 
-    // Equipment filter
-    if (!empty($filterEquipment)) {
-        $query .= " AND r.equipment_id = ?";
-        $params[] = $filterEquipment;
-    }
+
 
     // Get total count
     $countQuery = "SELECT COUNT(*) as total FROM reservations r WHERE 1=1";
     $countParams = [];
     
     // Members can only see their own reservations
-    if (!$isAdmin) {
+    if ($isMember) {
         $countQuery .= " AND r.member_id = ?";
         $countParams[] = $currentMemberId;
     }
     
+    // Trainers can only see reservations assigned to them
+    if ($isTrainer) {
+        $countQuery .= " AND r.trainer_id = ?";
+        $countParams[] = $currentTrainerId;
+    }
+    
     if (!empty($searchTerm)) {
-        $countQuery .= " AND (r.reservation_id LIKE ? OR r.member_id IN (SELECT member_id FROM members WHERE member_name LIKE ?) OR r.equipment_id IN (SELECT equipment_id FROM equipment WHERE equipment_name LIKE ?))";
+        $countQuery .= " AND (r.reservation_id LIKE ? OR r.member_id IN (SELECT member_id FROM members WHERE member_name LIKE ?) OR r.trainer_id IN (SELECT trainer_id FROM trainers WHERE trainer_name LIKE ?))";
         $search = "%$searchTerm%";
         $countParams = array_merge($countParams, [$search, $search, $search]);
     }
@@ -95,10 +121,7 @@ try {
         $countQuery .= " AND r.status = ?";
         $countParams[] = $filterStatus;
     }
-    if (!empty($filterEquipment)) {
-        $countQuery .= " AND r.equipment_id = ?";
-        $countParams[] = $filterEquipment;
-    }
+
     
     $countStmt = $pdo->prepare($countQuery);
     $countStmt->execute($countParams);
@@ -118,15 +141,25 @@ try {
 
 // Get reservation statistics
 try {
-    $statsStmt = $pdo->prepare("
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN status = 'Confirmed' THEN 1 ELSE 0 END) as confirmed,
-            SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending,
-            SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) as cancelled
-        FROM reservations
-    ");
-    $statsStmt->execute();
+    $statsQuery = "SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'Confirmed' THEN 1 ELSE 0 END) as confirmed,
+        SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) as cancelled
+        FROM reservations WHERE 1=1";
+    $statsParams = [];
+    
+    if ($isMember) {
+        $statsQuery .= " AND member_id = ?";
+        $statsParams[] = $currentMemberId;
+    }
+    if ($isTrainer) {
+        $statsQuery .= " AND trainer_id = ?";
+        $statsParams[] = $currentTrainerId;
+    }
+    
+    $statsStmt = $pdo->prepare($statsQuery);
+    $statsStmt->execute($statsParams);
     $stats = $statsStmt->fetch();
 } catch (Exception $e) {
     $stats = ['total' => 0, 'confirmed' => 0, 'pending' => 0, 'cancelled' => 0];
@@ -140,8 +173,18 @@ try {
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
             
             <div class="page-header">
-                <h1><i class="fas fa-calendar-check"></i> Reservations</h1>
-                <p>Manage equipment and facility reservations</p>
+                <h1><i class="fas fa-calendar-check"></i> 
+                    <?php echo $isTrainer ? '📋 Trainer Time Requests' : 'Trainer Time Reservations'; ?>
+                </h1>
+                <p>
+                    <?php 
+                    if ($isTrainer) {
+                        echo 'Review and manage member time requests';
+                    } else {
+                        echo 'Manage your trainer time bookings';
+                    }
+                    ?>
+                </p>
             </div>
 
             <?php displayMessage(); ?>
@@ -187,13 +230,13 @@ try {
                         <div class="col-md-4">
                             <form method="GET" class="d-flex" role="search">
                                 <input class="form-control search-input me-2" type="search" name="search" 
-                                       placeholder="Search by name, ID or equipment..." 
+                                       placeholder="Search by name, ID or trainer..." 
                                        value="<?php echo htmlspecialchars($searchTerm); ?>"
                                        aria-label="Search">
                                 <button class="btn btn-primary" type="submit">
                                     <i class="fas fa-search"></i> Search
                                 </button>
-                                <?php if (!empty($searchTerm) || !empty($filterStatus) || !empty($filterEquipment)): ?>
+                                <?php if (!empty($searchTerm) || !empty($filterStatus)): ?>
                                     <a href="<?php echo APP_URL; ?>modules/reservations/" class="btn btn-secondary ms-2">
                                         <i class="fas fa-times"></i> Clear
                                     </a>
@@ -209,9 +252,11 @@ try {
                             </select>
                         </div>
                         <div class="col-md-4 text-end">
+                            <?php if (!$isTrainer): ?>
                             <a href="<?php echo APP_URL; ?>modules/reservations/add.php" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> New Reservation
+                                <i class="fas fa-plus"></i> Request Trainer Time
                             </a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -219,13 +264,21 @@ try {
 
             <div class="card">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-table"></i> Reservations List</h5>
+                    <h5 class=\"mb-0\"><i class=\"fas fa-table\"></i> 
+                        <?php echo $isTrainer ? 'Pending Requests' : 'Reservations List'; ?>
+                    </h5>
                 </div>
-                <div class="card-body">
+                <div class=\"card-body\">
                     <?php if (empty($reservations)): ?>
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> No reservations found.
-                            <a href="<?php echo APP_URL; ?>modules/reservations/add.php">Create a reservation</a>
+                        <div class=\"alert alert-info\">
+                            <i class=\"fas fa-info-circle\"></i> 
+                            <?php 
+                            if ($isTrainer) {
+                                echo 'No pending trainer time requests at the moment.';
+                            } else {
+                                echo 'No reservations found. <a href=\"' . APP_URL . 'modules/reservations/add.php\">Create a reservation</a>';
+                            }
+                            ?>
                         </div>
                     <?php else: ?>
                         <div class="table-responsive">
@@ -234,7 +287,7 @@ try {
                                     <tr>
                                         <th>Reservation ID</th>
                                         <th>Member</th>
-                                        <th>Equipment</th>
+                                        <th>Trainer</th>
                                         <th>Reservation Date</th>
                                         <th>Time Slot</th>
                                         <th>Status</th>
@@ -246,7 +299,7 @@ try {
                                         <tr>
                                             <td><code><?php echo htmlspecialchars($reservation['reservation_id']); ?></code></td>
                                             <td><?php echo htmlspecialchars($reservation['member_name'] ?? 'N/A'); ?></td>
-                                            <td><?php echo htmlspecialchars($reservation['equipment_name'] ?? 'N/A'); ?></td>
+                                            <td><?php echo htmlspecialchars($reservation['trainer_name'] ?? 'N/A'); ?></td>
                                             <td><?php echo formatDate($reservation['reservation_date']); ?></td>
                                             <td>
                                                 <?php echo substr($reservation['start_time'], 0, 5); ?> - 

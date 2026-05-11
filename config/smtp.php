@@ -7,10 +7,10 @@
  */
 
 // SMTP Server Configuration
-define('SMTP_HOST', getenv('MAIL_HOST') ?: 'smtp.gmail.com');
-define('SMTP_PORT', getenv('MAIL_PORT') ?: 587);
-define('SMTP_USERNAME', getenv('MAIL_USERNAME') ?: 'levelupfitnessnoreply@gmail.com');
-define('SMTP_PASSWORD', getenv('MAIL_PASSWORD') ?: 'meub jxho lmbw qcib');
+define('SMTP_HOST', getenv('MAIL_HOST') ?: 'sandbox.smtp.mailtrap.io');
+define('SMTP_PORT', getenv('MAIL_PORT') ?: 2525);
+define('SMTP_USERNAME', getenv('MAIL_USERNAME') ?: '291e1c42b01af7');
+define('SMTP_PASSWORD', getenv('MAIL_PASSWORD') ?: '31a6dcc7c10c44');
 define('SMTP_ENCRYPTION', getenv('MAIL_ENCRYPTION') ?: 'tls'); // 'tls' or 'ssl'
 
 // Email Configuration

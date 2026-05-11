@@ -1001,6 +1001,70 @@ function sendReservationNotification($userId, $email, $reservationId, $equipment
 }
 
 /**
+ * Notify trainer of new reservation request
+ * @param int $trainerUserId - Trainer user ID
+ * @param string $memberName - Member name
+ * @param string $reservationId - Reservation ID
+ * @param string $reservationDate - Reservation date
+ * @param string $startTime - Start time
+ * @param string $endTime - End time
+ * @param string $purpose - Training purpose
+ * @return bool - Success status
+ */
+function notifyTrainerOfReservationRequest($trainerUserId, $memberName, $reservationId, $reservationDate, $startTime, $endTime, $purpose = '') {
+    $title = '📅 New Trainer Time Request';
+    $message = $memberName . ' has requested trainer time on ' . formatDate($reservationDate) . ' at ' . substr($startTime, 0, 5) . '.';
+    if (!empty($purpose)) {
+        $message .= ' Purpose: ' . $purpose;
+    }
+    
+    return createNotification(
+        $trainerUserId,
+        'reservation',
+        $title,
+        $message,
+        [
+            'icon' => 'calendar-plus',
+            'color' => 'info',
+            'entity_type' => 'reservation',
+            'entity_id' => $reservationId,
+            'action_url' => APP_URL . 'modules/reservations/view.php?id=' . $reservationId,
+            'priority' => 'high'
+        ]
+    );
+}
+
+/**
+ * Notify member of reservation approval
+ * @param int $memberUserId - Member user ID
+ * @param string $trainerName - Trainer name
+ * @param string $reservationId - Reservation ID
+ * @param string $reservationDate - Reservation date
+ * @param string $startTime - Start time
+ * @param string $endTime - End time
+ * @return bool - Success status
+ */
+function notifyMemberOfReservationApproval($memberUserId, $trainerName, $reservationId, $reservationDate, $startTime, $endTime) {
+    $title = '✅ Trainer Time Approved';
+    $message = 'Your trainer time request with ' . $trainerName . ' has been approved for ' . formatDate($reservationDate) . ' at ' . substr($startTime, 0, 5) . '.';
+    
+    return createNotification(
+        $memberUserId,
+        'reservation',
+        $title,
+        $message,
+        [
+            'icon' => 'check-circle',
+            'color' => 'success',
+            'entity_type' => 'reservation',
+            'entity_id' => $reservationId,
+            'action_url' => APP_URL . 'modules/reservations/view.php?id=' . $reservationId,
+            'priority' => 'high'
+        ]
+    );
+}
+
+/**
  * Generate an email verification token
  * 
  * @param int $userId The user ID to generate token for

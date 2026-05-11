@@ -11,9 +11,11 @@ requireLogin();
 $reservationId = sanitize($_GET['id'] ?? '');
 $reservation = null;
 $member = null;
-$equipment = null;
+$trainer = null;
 $isAdmin = $_SESSION['user_type'] === 'admin';
+$isTrainer = $_SESSION['user_type'] === 'trainer';
 $currentMemberId = null;
+$currentTrainerId = null;
 
 // Get current user's member ID if they are a member
 if (!$isAdmin && $_SESSION['user_type'] === 'member') {
@@ -24,6 +26,18 @@ if (!$isAdmin && $_SESSION['user_type'] === 'member') {
         $currentMemberId = $memberData['member_id'] ?? null;
     } catch (Exception $e) {
         setMessage('Error loading member data: ' . $e->getMessage(), 'error');
+    }
+}
+
+// Get current user's trainer ID if they are a trainer
+if ($isTrainer) {
+    try {
+        $trainerStmt = $pdo->prepare("SELECT trainer_id FROM trainers WHERE user_id = ?");
+        $trainerStmt->execute([$_SESSION['user_id']]);
+        $trainerData = $trainerStmt->fetch();
+        $currentTrainerId = $trainerData['trainer_id'] ?? null;
+    } catch (Exception $e) {
+        setMessage('Error loading trainer data: ' . $e->getMessage(), 'error');
     }
 }
 
@@ -39,8 +53,13 @@ if (!empty($reservationId)) {
         }
         
         // Members can only view their own reservations
-        if (!$isAdmin && $reservation['member_id'] !== $currentMemberId) {
+        if (!$isAdmin && !$isTrainer && $reservation['member_id'] !== $currentMemberId) {
             die('Access denied: You can only view your own reservations.');
+        }
+
+        // Trainers can only view reservations assigned to them
+        if ($isTrainer && $reservation['trainer_id'] !== $currentTrainerId) {
+            die('Access denied: You can only view reservations assigned to you.');
         }
 
         // Get member info
@@ -50,11 +69,11 @@ if (!empty($reservationId)) {
             $member = $memberStmt->fetch();
         }
 
-        // Get equipment info
-        if (!empty($reservation['equipment_id'])) {
-            $equipmentStmt = $pdo->prepare("SELECT * FROM equipment WHERE equipment_id = ?");
-            $equipmentStmt->execute([$reservation['equipment_id']]);
-            $equipment = $equipmentStmt->fetch();
+        // Get trainer info
+        if (!empty($reservation['trainer_id'])) {
+            $trainerStmt = $pdo->prepare("SELECT * FROM trainers WHERE trainer_id = ?");
+            $trainerStmt->execute([$reservation['trainer_id']]);
+            $trainer = $trainerStmt->fetch();
         }
 
     } catch (Exception $e) {
@@ -71,6 +90,11 @@ if (!empty($reservationId)) {
             
             <div class="page-header">
                 <div class="float-end">
+                    <?php if ($isTrainer && $reservation['status'] === 'Pending'): ?>
+                        <a href="<?php echo APP_URL; ?>modules/reservations/approve.php?id=<?php echo $reservationId; ?>" class="btn btn-success btn-sm">
+                            <i class="fas fa-check"></i> Approve
+                        </a>
+                    <?php endif; ?>
                     <a href="<?php echo APP_URL; ?>modules/reservations/edit.php?id=<?php echo $reservationId; ?>" class="btn btn-warning btn-sm">
                         <i class="fas fa-edit"></i> Edit
                     </a>
@@ -81,8 +105,8 @@ if (!empty($reservationId)) {
                 <a href="<?php echo APP_URL; ?>modules/reservations/" class="btn btn-secondary btn-sm">
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
-                <h1><i class="fas fa-calendar-check"></i> Reservation Details</h1>
-                <p>View reservation information</p>
+                <h1><i class="fas fa-calendar-check"></i> Trainer Time Request</h1>
+                <p>View reservation details and status</p>
             </div>
 
             <?php displayMessage(); ?>
@@ -96,7 +120,7 @@ if (!empty($reservationId)) {
                         </div>
                         <div class="card-body">
                             <p>
-                                <strong>Reservation ID:</strong> <code><?php echo htmlspecialchars($reservation['reservation_id']); ?></code>
+                                <strong>Purpose:</strong> <span class="badge bg-info"><?php echo htmlspecialchars($reservation['purpose'] ?? 'Not specified'); ?></span><br>
                             </p>
                             <hr>
                             <p>
@@ -148,21 +172,21 @@ if (!empty($reservationId)) {
                     </div>
                     <?php endif; ?>
 
-                    <?php if ($equipment): ?>
+                    <?php if ($trainer): ?>
                     <div class="card">
                         <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">Equipment Details</h5>
+                            <h5 class="mb-0">Trainer Details</h5>
                         </div>
                         <div class="card-body">
                             <p>
-                                <strong>Equipment:</strong> <?php echo htmlspecialchars($equipment['equipment_name']); ?><br>
-                                <strong>ID:</strong> <code><?php echo htmlspecialchars($equipment['equipment_id']); ?></code><br>
-                                <strong>Category:</strong> <?php echo htmlspecialchars($equipment['category']); ?>
+                                <strong>Trainer:</strong> <?php echo htmlspecialchars($trainer['trainer_name']); ?><br>
+                                <strong>ID:</strong> <code><?php echo htmlspecialchars($trainer['trainer_id']); ?></code><br>
+                                <strong>Specialization:</strong> <?php echo htmlspecialchars($trainer['specialization'] ?? 'N/A'); ?>
                             </p>
                             <hr>
-                            <a href="<?php echo APP_URL; ?>modules/equipment/view.php?id=<?php echo $equipment['equipment_id']; ?>" 
+                            <a href="<?php echo APP_URL; ?>modules/trainers/view.php?id=<?php echo $trainer['trainer_id']; ?>" 
                                class="btn btn-sm btn-success">
-                                <i class="fas fa-link"></i> View Equipment
+                                <i class="fas fa-link"></i> View Trainer Profile
                             </a>
                         </div>
                     </div>
@@ -170,6 +194,17 @@ if (!empty($reservationId)) {
                 </div>
 
                 <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Reservation ID</h5>
+                        </div>
+                        <div class="card-body">
+                            <code class="d-block text-center" style="font-size: 16px; word-break: break-all;">
+                                <?php echo htmlspecialchars($reservation['reservation_id']); ?>
+                            </code>
+                        </div>
+                    </div>
+
                     <div class="card mb-3">
                         <div class="card-header bg-success text-white">
                             <h5 class="mb-0">Duration</h5>

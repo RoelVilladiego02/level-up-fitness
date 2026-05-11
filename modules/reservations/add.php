@@ -14,20 +14,20 @@ if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'member') {
 
 $errors = [];
 $formData = [];
-$members = [];
-$equipment = [];
+$trainers = [];
 $isAdmin = $_SESSION['user_type'] === 'admin';
 $currentMemberId = null;
+$memberTrainer = null;
 
 // Get current user's member ID if they are a member
 if (!$isAdmin) {
     try {
-        $memberStmt = $pdo->prepare("SELECT member_id FROM members WHERE user_id = ? AND status = 'Active'");
+        $memberStmt = $pdo->prepare("SELECT member_id, trainer_id FROM members WHERE user_id = ? AND status = 'Active'");
         $memberStmt->execute([$_SESSION['user_id']]);
         $memberData = $memberStmt->fetch();
         $currentMemberId = $memberData['member_id'] ?? null;
+        $memberTrainer = $memberData['trainer_id'] ?? null;
         
-        // If user is a member but doesn't have a member record, deny access
         if (!$currentMemberId) {
             die('Access denied: No active member record found for your account.');
         }
@@ -36,21 +36,16 @@ if (!$isAdmin) {
     }
 }
 
-// Load members and equipment for dropdowns
+// Load trainers for dropdown
 try {
-    // If member, only load their own member info; if admin, load all active members
     if ($isAdmin) {
-        $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE status = 'Active' ORDER BY member_name");
-        $memberStmt->execute();
+        $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE status = 'Active' ORDER BY trainer_name");
+        $trainerStmt->execute();
     } else {
-        $memberStmt = $pdo->prepare("SELECT member_id, member_name FROM members WHERE member_id = ? AND status = 'Active'");
-        $memberStmt->execute([$currentMemberId]);
+        $trainerStmt = $pdo->prepare("SELECT trainer_id, trainer_name FROM trainers WHERE status = 'Active' ORDER BY trainer_name");
+        $trainerStmt->execute();
     }
-    $members = $memberStmt->fetchAll();
-
-    $equipmentStmt = $pdo->prepare("SELECT equipment_id, equipment_name FROM equipment WHERE availability = 'Available' ORDER BY equipment_name");
-    $equipmentStmt->execute();
-    $equipment = $equipmentStmt->fetchAll();
+    $trainers = $trainerStmt->fetchAll();
 } catch (Exception $e) {
     setMessage('Error loading data: ' . $e->getMessage(), 'error');
 }
@@ -63,10 +58,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $formData['member_id'] = $currentMemberId; // Auto-populate for members
     }
     
-    $formData['equipment_id'] = sanitize($_POST['equipment_id'] ?? '');
+    $formData['trainer_id'] = sanitize($_POST['trainer_id'] ?? '');
     $formData['reservation_date'] = sanitize($_POST['reservation_date'] ?? '');
     $formData['start_time'] = sanitize($_POST['start_time'] ?? '');
     $formData['end_time'] = sanitize($_POST['end_time'] ?? '');
+    $formData['purpose'] = sanitize($_POST['purpose'] ?? '');
     $formData['notes'] = sanitize($_POST['notes'] ?? '');
     $formData['status'] = sanitize($_POST['status'] ?? 'Pending');
 
@@ -74,7 +70,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($formData['member_id'])) {
         $errors['member_id'] = 'Member information is missing';
     } else {
-        // Verify member exists and is active
         $memberCheck = $pdo->prepare("SELECT member_id FROM members WHERE member_id = ? AND status = 'Active'");
         $memberCheck->execute([$formData['member_id']]);
         if (!$memberCheck->fetch()) {
@@ -82,15 +77,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Validate Equipment
-    if (empty($formData['equipment_id'])) {
-        $errors['equipment_id'] = 'Please select equipment';
+    // Check if member has pending reservations (prevent multiple pending requests)
+    if (empty($errors['member_id']) && !$isAdmin) {
+        $pendingCheck = $pdo->prepare("
+            SELECT COUNT(*) as pending_count, GROUP_CONCAT(reservation_id) as pending_ids
+            FROM reservations 
+            WHERE member_id = ? AND status = 'Pending'
+        ");
+        $pendingCheck->execute([$formData['member_id']]);
+        $pendingResult = $pendingCheck->fetch();
+        
+        if ($pendingResult['pending_count'] > 0) {
+            $errors['pending_requests'] = 'You have pending trainer time requests that need to be reviewed first. Request ID(s): ' . $pendingResult['pending_ids'] . '. Please wait for your trainer to approve or reject them before submitting a new request.';
+        }
+    }
+
+    // Validate Trainer
+    if (empty($formData['trainer_id'])) {
+        $errors['trainer_id'] = 'Please select a trainer';
     } else {
-        // Verify equipment exists and is available
-        $equipCheck = $pdo->prepare("SELECT equipment_id FROM equipment WHERE equipment_id = ? AND availability = 'Available'");
-        $equipCheck->execute([$formData['equipment_id']]);
-        if (!$equipCheck->fetch()) {
-            $errors['equipment_id'] = 'Selected equipment is not available';
+        $trainerCheck = $pdo->prepare("SELECT trainer_id FROM trainers WHERE trainer_id = ? AND status = 'Active'");
+        $trainerCheck->execute([$formData['trainer_id']]);
+        if (!$trainerCheck->fetch()) {
+            $errors['trainer_id'] = 'Selected trainer is not active or does not exist';
         }
     }
 
@@ -113,6 +122,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['start_time'] = 'Please enter start time';
     } elseif (!preg_match('/^\d{2}:\d{2}$/', $formData['start_time'])) {
         $errors['start_time'] = 'Invalid time format (use HH:MM)';
+    } else {
+        // Check gym hours (6:00 AM - 10:00 PM)
+        $startParts = explode(':', $formData['start_time']);
+        $startHour = (int)$startParts[0];
+        if ($startHour < 6 || $startHour >= 22) {
+            $errors['start_time'] = 'Gym hours are 6:00 AM - 10:00 PM. Please select a time within these hours.';
+        }
     }
 
     // Validate End Time
@@ -120,6 +136,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['end_time'] = 'Please enter end time';
     } elseif (!preg_match('/^\d{2}:\d{2}$/', $formData['end_time'])) {
         $errors['end_time'] = 'Invalid time format (use HH:MM)';
+    } else {
+        // Check gym hours (6:00 AM - 10:00 PM)
+        $endParts = explode(':', $formData['end_time']);
+        $endHour = (int)$endParts[0];
+        if ($endHour < 6 || ($endHour >= 22 && $formData['end_time'] !== '22:00')) {
+            $errors['end_time'] = 'Gym hours are 6:00 AM - 10:00 PM. Please select a time within these hours.';
+        }
     }
 
     // Validate time relationship
@@ -137,22 +160,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors['duration'] = 'Reservation must be at least 30 minutes long';
         }
         
-        // Check maximum duration (no more than 8 hours)
-        if ($durationMinutes > 480) {
-            $errors['duration'] = 'Reservation cannot exceed 8 hours';
+        // Check maximum duration (no more than 2 hours for one-on-one)
+        if ($durationMinutes > 120) {
+            $errors['duration'] = 'One-on-one sessions cannot exceed 2 hours';
         }
     }
 
-    // Check for conflicts (only if other validations pass)
+    // Check for trainer conflicts
     if (empty($errors) || (count($errors) <= 1 && isset($errors['time_conflict']))) {
         try {
-            // Check for time conflicts with same equipment
-            // Handle time comparison properly (times stored as TIME format)
             $conflictStmt = $pdo->prepare("
                 SELECT COUNT(*) as count FROM reservations 
-                WHERE equipment_id = ? 
+                WHERE trainer_id = ? 
                 AND reservation_date = ? 
-                AND status IN ('Confirmed')
+                AND status IN ('Confirmed', 'Pending')
                 AND (
                     (TIME(start_time) < TIME(?) AND TIME(end_time) > TIME(?))
                     OR (TIME(start_time) = TIME(?) AND TIME(end_time) > TIME(?))
@@ -160,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 )
             ");
             $conflictStmt->execute([
-                $formData['equipment_id'],
+                $formData['trainer_id'],
                 $formData['reservation_date'],
                 $formData['end_time'],
                 $formData['start_time'],
@@ -172,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $conflict = $conflictStmt->fetch();
             
             if ($conflict['count'] > 0) {
-                $errors['time_conflict'] = 'This equipment is already reserved during the selected time. Please choose a different time slot.';
+                $errors['time_conflict'] = 'This trainer is already booked during the selected time. Please choose a different time slot.';
             }
         } catch (Exception $e) {
             $errors['database'] = 'Error checking availability: ' . $e->getMessage();
@@ -185,46 +206,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare("
                 INSERT INTO reservations (
-                    reservation_id, member_id, equipment_id, reservation_date, 
-                    start_time, end_time, notes, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    reservation_id, member_id, trainer_id, reservation_date, 
+                    start_time, end_time, purpose, notes, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
-                $reservationId, $formData['member_id'], $formData['equipment_id'],
+                $reservationId, $formData['member_id'], $formData['trainer_id'],
                 $formData['reservation_date'], $formData['start_time'], 
-                $formData['end_time'], !empty($formData['notes']) ? $formData['notes'] : NULL,
+                $formData['end_time'], !empty($formData['purpose']) ? $formData['purpose'] : NULL,
+                !empty($formData['notes']) ? $formData['notes'] : NULL,
                 $formData['status']
             ]);
 
             logAction($_SESSION['user_id'], 'CREATE_RESERVATION', 'Reservations', 
                      'Created reservation: ' . $reservationId);
             
-            // Send reservation notification with in-app + email
+            // Send notification to trainer about the new request
             try {
-                $memberStmt = $pdo->prepare("SELECT user_id, email FROM members WHERE member_id = ?");
+                $memberStmt = $pdo->prepare("SELECT member_name FROM members WHERE member_id = ?");
                 $memberStmt->execute([$formData['member_id']]);
                 $memberData = $memberStmt->fetch();
                 
-                $equipmentStmt = $pdo->prepare("SELECT equipment_name FROM equipment WHERE equipment_id = ?");
-                $equipmentStmt->execute([$formData['equipment_id']]);
-                $equipmentData = $equipmentStmt->fetch();
+                $trainerStmt = $pdo->prepare("SELECT user_id FROM trainers WHERE trainer_id = ?");
+                $trainerStmt->execute([$formData['trainer_id']]);
+                $trainerData = $trainerStmt->fetch();
                 
-                if ($memberData && !empty($memberData['email']) && $equipmentData) {
-                    sendReservationNotification(
-                        $memberData['user_id'],
-                        $memberData['email'],
+                if ($memberData && $trainerData) {
+                    notifyTrainerOfReservationRequest(
+                        $trainerData['user_id'],
+                        $memberData['member_name'],
                         $reservationId,
-                        $equipmentData['equipment_name'],
                         $formData['reservation_date'],
                         $formData['start_time'],
-                        $formData['end_time']
+                        $formData['end_time'],
+                        $formData['purpose'] ?? ''
                     );
                 }
             } catch (Exception $e) {
-                error_log('Failed to send reservation notification: ' . $e->getMessage());
+                error_log('Failed to send trainer notification: ' . $e->getMessage());
             }
 
-            setMessage('Reservation created successfully! ID: ' . $reservationId . ' (Notification sent)', 'success');
+            setMessage('Trainer time request submitted successfully! ID: ' . $reservationId . ' (Trainer will review and confirm)', 'success');
             redirect(APP_URL . 'modules/reservations/');
         } catch (Exception $e) {
             setMessage('Error creating reservation: ' . $e->getMessage(), 'error');
@@ -243,8 +265,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <a href="<?php echo APP_URL; ?>modules/reservations/" class="btn btn-secondary btn-sm float-end">
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
-                <h1><i class="fas fa-plus-circle"></i> Create New Reservation</h1>
-                <p>Book equipment or facility</p>
+                <h1><i class="fas fa-plus-circle"></i> Request Trainer Time</h1>
+                <p>Reserve one-on-one time with your trainer</p>
             </div>
 
             <?php displayMessage(); ?>
@@ -257,6 +279,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <div class="card-body">
                             <form method="POST" action="" class="needs-validation" novalidate>
+                                <?php if (!empty($errors['pending_requests'])): ?>
+                                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                                        <i class="fas fa-hourglass-half"></i> <strong>Pending Requests!</strong> <?php echo $errors['pending_requests']; ?>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                <?php endif; ?>
                                 <?php if (!empty($errors['time_conflict'])): ?>
                                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                                         <i class="fas fa-calendar-times"></i> <strong>Time Conflict!</strong> <?php echo $errors['time_conflict']; ?>
@@ -300,9 +328,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <div class="form-control-plaintext bg-light border rounded p-2">
                                                 <strong>
                                                     <?php 
-                                                    foreach ($members as $member) {
-                                                        echo htmlspecialchars($member['member_name']);
-                                                    }
+                                                    $memberNameStmt = $pdo->prepare("SELECT member_name FROM members WHERE member_id = ?");
+                                                    $memberNameStmt->execute([$currentMemberId]);
+                                                    $memberNameData = $memberNameStmt->fetch();
+                                                    echo htmlspecialchars($memberNameData['member_name'] ?? 'N/A');
                                                     ?>
                                                 </strong>
                                                 <small class="text-muted d-block mt-1">ID: <code><?php echo htmlspecialchars($currentMemberId); ?></code></small>
@@ -312,19 +341,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
 
                                     <div class="col-md-6 mb-3">
-                                        <label for="equipment_id" class="form-label">Equipment *</label>
-                                        <select class="form-select <?php echo isset($errors['equipment_id']) ? 'is-invalid' : ''; ?>" 
-                                                id="equipment_id" name="equipment_id" required>
-                                            <option value="">-- Select Equipment --</option>
-                                            <?php foreach ($equipment as $eq): ?>
-                                                <option value="<?php echo $eq['equipment_id']; ?>" 
-                                                        <?php echo ($formData['equipment_id'] ?? '') === $eq['equipment_id'] ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($eq['equipment_name']); ?>
+                                        <label for="trainer_id" class="form-label">Trainer *</label>
+                                        <select class="form-select <?php echo isset($errors['trainer_id']) ? 'is-invalid' : ''; ?>" 
+                                                id="trainer_id" name="trainer_id" required>
+                                            <option value="">-- Select Trainer --</option>
+                                            <?php foreach ($trainers as $trainer): ?>
+                                                <option value="<?php echo $trainer['trainer_id']; ?>" 
+                                                        <?php echo ($formData['trainer_id'] ?? $memberTrainer) === $trainer['trainer_id'] ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($trainer['trainer_name']); ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
-                                        <?php if (isset($errors['equipment_id'])): ?>
-                                            <div class="invalid-feedback"><?php echo $errors['equipment_id']; ?></div>
+                                        <?php if (isset($errors['trainer_id'])): ?>
+                                            <div class="invalid-feedback"><?php echo $errors['trainer_id']; ?></div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -332,12 +361,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="row mt-4">
                                     <div class="col-12">
                                         <h6 class="text-muted mb-3">
-                                            <i class="fas fa-clock"></i> Time Slot Selection
+                                            <i class="fas fa-calendar"></i> Date & Time Slot Selection
                                         </h6>
                                     </div>
                                 </div>
 
                                 <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label for="reservation_date" class="form-label">
+                                            Reservation Date <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="date" class="form-control <?php echo isset($errors['reservation_date']) ? 'is-invalid' : ''; ?>" 
+                                               id="reservation_date" name="reservation_date" 
+                                               value="<?php echo htmlspecialchars($formData['reservation_date'] ?? ''); ?>"
+                                               style="cursor: pointer;"
+                                               required>
+                                        <?php if (isset($errors['reservation_date'])): ?>
+                                            <div class="invalid-feedback d-block"><?php echo $errors['reservation_date']; ?></div>
+                                        <?php endif; ?>
+                                        <!-- Quick Date Buttons -->
+                                        <div style="display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap;">
+                                            <button type="button" class="btn btn-outline-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="setReservationDateToday()">Today</button>
+                                            <button type="button" class="btn btn-outline-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="setReservationDateTomorrow()">Tomorrow</button>
+                                            <button type="button" class="btn btn-outline-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="setReservationDateNextWeek()">Next Week</button>
+                                        </div>
+                                        <small class="text-muted d-block mt-2">
+                                            <i class="fas fa-info-circle"></i> 
+                                            Click the field to open calendar or use quick buttons. Select a date up to 90 days in advance.
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <div class="row mt-4">
                                     <div class="col-md-5 mb-3">
                                         <label for="start_time" class="form-label">
                                             Start Time <span class="text-danger">*</span>
@@ -381,7 +436,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <div class="alert alert-info mb-0">
                                             <small id="duration-display">-- min</small>
                                         </div>
-                                        <small class="text-muted d-block mt-1">Min: 30 min<br>Max: 8 hrs</small>
+                                        <small class="text-muted d-block mt-1">Min: 30 min<br>Max: 2 hrs</small>
                                     </div>
                                 </div>
 
@@ -392,9 +447,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <?php endif; ?>
 
                                 <div class="mb-3">
-                                    <label for="notes" class="form-label">Notes</label>
+                                    <label for="notes" class="form-label">Additional Notes</label>
                                     <textarea class="form-control" id="notes" name="notes" rows="3" 
-                                              placeholder="Additional notes...">
+                                              placeholder="Any special requests or additional information...">
                                               <?php echo htmlspecialchars($formData['notes'] ?? ''); ?></textarea>
                                 </div>
 
@@ -411,8 +466,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <a href="<?php echo APP_URL; ?>modules/reservations/" class="btn btn-outline-secondary">
                                         <i class="fas fa-times"></i> Cancel
                                     </a>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save"></i> Create Reservation
+                                    <button type="submit" class="btn btn-primary" <?php echo !empty($errors['pending_requests']) ? 'disabled' : ''; ?>>
+                                        <i class="fas fa-save"></i> Request Trainer Time
                                     </button>
                                 </div>
                             </form>
@@ -430,7 +485,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="card-body small">
                             <p class="mb-2">
                                 <i class="fas fa-check text-success"></i> 
-                                <strong>Duration:</strong> 30 min - 8 hours
+                                <strong>Duration:</strong> 30 min - 2 hours
                             </p>
                             <p class="mb-2">
                                 <i class="fas fa-check text-success"></i> 
@@ -456,10 +511,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="card-body small">
                             <ul class="mb-0">
                                 <li class="mb-2">Required fields marked with <span class="text-danger">*</span></li>
-                                <li class="mb-2">Time is set in 24-hour format</li>
+                                <li class="mb-2">Your assigned trainer is pre-selected</li>
                                 <li class="mb-2">Duration updates automatically</li>
                                 <li class="mb-2">All conflicts are validated</li>
-                                <li>Add notes for special requests</li>
+                                <li class="mb-2">You can only have one pending request at a time</li>
+                                <li class="mb-2">Wait for trainer approval before requesting again</li>
+                                <li>Trainer will confirm or reject your request</li>
                             </ul>
                         </div>
                     </div>
@@ -471,9 +528,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const reservationDateInput = document.getElementById('reservation_date');
     const startTimeInput = document.getElementById('start_time');
     const endTimeInput = document.getElementById('end_time');
     const durationDisplay = document.getElementById('duration-display');
+
+    // Helper function to format date for input
+    function getFormattedDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    // Set minimum date to today
+    const today = new Date();
+    reservationDateInput.setAttribute('min', getFormattedDate(today));
+    
+    // Set maximum date to 90 days from now
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 90);
+    reservationDateInput.setAttribute('max', getFormattedDate(maxDate));
+
+    // Quick date buttons - these do NOT interfere with native picker
+    window.setReservationDateToday = function() {
+        reservationDateInput.value = getFormattedDate(new Date());
+    };
+
+    window.setReservationDateTomorrow = function() {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        reservationDateInput.value = getFormattedDate(tomorrow);
+    };
+
+    window.setReservationDateNextWeek = function() {
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        reservationDateInput.value = getFormattedDate(nextWeek);
+    };
 
     function updateDuration() {
         if (startTimeInput.value && endTimeInput.value) {
@@ -498,7 +590,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (minutes < 30) {
                     durationDisplay.parentElement.classList.remove('alert-info', 'alert-success', 'alert-warning');
                     durationDisplay.parentElement.classList.add('alert-danger');
-                } else if (minutes > 480) {
+                } else if (minutes > 120) {
                     durationDisplay.parentElement.classList.remove('alert-info', 'alert-success', 'alert-danger');
                     durationDisplay.parentElement.classList.add('alert-warning');
                 } else {
