@@ -89,26 +89,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($reservationId)) {
             $reservationRefresh->execute([$reservationId]);
             $reservationRefresh = $reservationRefresh->fetch();
             
+            if (!$reservationRefresh) {
+                throw new Exception('Reservation not found after update');
+            }
+            
             $memberStmt = $pdo->prepare("SELECT user_id FROM members WHERE member_id = ?");
             $memberStmt->execute([$reservationRefresh['member_id']]);
             $memberData = $memberStmt->fetch();
+            
+            if (!$memberData) {
+                error_log('Member not found for member_id: ' . $reservationRefresh['member_id']);
+                throw new Exception('Member record not found');
+            }
             
             $trainerStmt = $pdo->prepare("SELECT trainer_name FROM trainers WHERE trainer_id = ?");
             $trainerStmt->execute([$reservationRefresh['trainer_id']]);
             $trainerData = $trainerStmt->fetch();
             
-            if ($memberData && $trainerData) {
-                notifyMemberOfReservationApproval(
-                    $memberData['user_id'],
-                    $trainerData['trainer_name'],
-                    $reservationId,
-                    $reservationRefresh['reservation_date'],
-                    $reservationRefresh['start_time'],
-                    $reservationRefresh['end_time']
-                );
+            if (!$trainerData) {
+                error_log('Trainer not found for trainer_id: ' . $reservationRefresh['trainer_id']);
+                throw new Exception('Trainer record not found');
+            }
+            
+            $result = notifyMemberOfReservationApproval(
+                $memberData['user_id'],
+                $trainerData['trainer_name'],
+                $reservationId,
+                $reservationRefresh['reservation_date'],
+                $reservationRefresh['start_time'],
+                $reservationRefresh['end_time']
+            );
+            
+            if (!$result) {
+                error_log('Failed to create notification for user: ' . $memberData['user_id']);
             }
         } catch (Exception $e) {
             error_log('Failed to send member notification: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
         }
         
         setMessage('Reservation approved successfully! Member has been notified.', 'success');
