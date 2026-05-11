@@ -5,6 +5,8 @@
  */
 
 require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/config/SMTPMailService.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/config/PDFGenerator.php';
 
 requireLogin();
 requireRole('admin');
@@ -105,11 +107,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email']) && $pay
     $headers .= "Content-type: text/html; charset=UTF-8" . "\r\n";
     $headers .= 'From: ' . 'noreply@levelupfitness.com' . "\r\n";
     
-    if (mail($to, $subject, $emailBody, $headers)) {
-        setMessage('Invoice sent to ' . htmlspecialchars($payment['email']) . ' successfully!', 'success');
-        logAction($_SESSION['user_id'], 'SEND_INVOICE', 'Payments', 'Sent invoice for payment: ' . $paymentId);
+    // Generate PDF invoice
+    $pdfResult = PDFGenerator::generateInvoicePdf($payment);
+    
+    // Prepare email options with attachment
+    $emailOptions = [];
+    if ($pdfResult['success']) {
+        $emailOptions['attachments'] = [
+            [
+                'path' => $pdfResult['file_path'],
+                'name' => 'invoice_' . $payment['payment_id'] . '.pdf'
+            ]
+        ];
+    }
+    
+    // Send email via SMTP with PDF attachment
+    $result = SMTPMailService::send(
+        $to,
+        $subject,
+        $emailBody,
+        '',
+        $emailOptions
+    );
+    
+    if ($result['success']) {
+        setMessage('Invoice sent to ' . htmlspecialchars($payment['email']) . ' successfully!' . ($pdfResult['success'] ? ' (with invoice attachment)' : ''), 'success');
+        logAction($_SESSION['user_id'], 'SEND_INVOICE', 'Payments', 'Sent invoice for payment: ' . $paymentId . ($pdfResult['success'] ? ' with attachment' : ''));
+        
+        // Clean up old temporary files (older than 1 hour)
+        PDFGenerator::cleanupOldFiles();
     } else {
-        setMessage('Error sending email. Please try again.', 'error');
+        setMessage('Error sending email: ' . $result['message'], 'error');
     }
 }
 ?>

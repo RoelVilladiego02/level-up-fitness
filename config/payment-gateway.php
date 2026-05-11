@@ -26,15 +26,15 @@ return [
             'environment_label' => 'Testing Environment',
             
             // API Credentials (Test/Sandbox)
-            // Note: Replace with actual sandbox credentials from Maya Dashboard
-            'api_key' => getenv('MAYA_SANDBOX_API_KEY') ?: 'pk_test_sandbox_key_placeholder',
-            'api_secret' => getenv('MAYA_SANDBOX_API_SECRET') ?: 'sk_test_sandbox_secret_placeholder',
+            // Note: Using real Maya sandbox credentials from .env
+            'api_key' => getenv('MAYA_SANDBOX_API_KEY') ?: 'pk-Z0OSzLvIcOI2UIvDhdTGVVfRSSeiGStnceqwUE7n0Ah',
+            'api_secret' => getenv('MAYA_SANDBOX_API_SECRET') ?: 'sk-X8qolYjy62kIzEbr0QRK1h4b4KDVHaNcwMYk39jInSl',
             
             // API Endpoints
             'api_url' => 'https://api-sandbox.maya.ph', // Test API endpoint
             
             // Merchant Information (Test Merchant)
-            'merchant_id' => getenv('MAYA_SANDBOX_MERCHANT_ID') ?: 'TEST_MERCHANT_001',
+            'merchant_id' => getenv('MAYA_SANDBOX_MERCHANT_ID') ?: 'LEVELUP_SANDBOX_001',
             'merchant_name' => 'Level Up Fitness Test',
             'merchant_logo_url' => 'https://levelupfitness.local/assets/img/logo.png',
             
@@ -69,7 +69,7 @@ return [
             
             // Test Mode Features
             'test_mode' => true,
-            'mock_responses' => false, // Set to true to use mock responses instead of real API
+            'mock_responses' => true, // Using mock responses for testing
             'debug_mode' => true,
         ],
         

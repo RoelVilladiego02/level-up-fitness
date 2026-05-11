@@ -6,11 +6,8 @@
  * Check payment status via transaction ID
  */
 
-require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/api-init.php';
 require_once dirname(dirname(dirname(__FILE__))) . '/config/MayaPaymentService.php';
-
-// Only allow authenticated requests
-requireLogin();
 
 // Set response headers
 header('Content-Type: application/json');

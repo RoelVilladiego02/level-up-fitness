@@ -4,6 +4,9 @@
  * Level Up Fitness - Gym Management System
  */
 
+// Load .env file first
+require_once dirname(__FILE__) . '/env-loader.php';
+
 // Include database connection
 require_once dirname(__FILE__) . '/database.php';
 
@@ -54,6 +57,7 @@ define('PAYMENT_CASH', 'Cash');
 define('PAYMENT_CARD', 'Card');
 define('PAYMENT_GCASH', 'GCash');
 define('PAYMENT_BANK_TRANSFER', 'Bank Transfer');
+define('PAYMENT_MAYA', 'Maya');
 
 // Payment Status
 define('PAYMENT_PAID', 'Paid');

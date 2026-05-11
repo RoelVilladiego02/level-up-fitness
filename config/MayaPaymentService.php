@@ -72,6 +72,13 @@ class MayaPaymentService {
             // Generate transaction ID
             $transactionId = $this->generateTransactionId();
             
+            // Check if mock mode is enabled
+            if (!empty($this->config['maya'][$this->environment]['mock_responses']) || 
+                $this->config['maya'][$this->environment]['mock_responses'] === true) {
+                // Use mock response for testing
+                return $this->getMockCheckoutResponse($transactionId, $paymentData);
+            }
+            
             // Prepare payment payload
             $payload = $this->buildPaymentPayload($paymentData, $transactionId);
             
@@ -101,6 +108,35 @@ class MayaPaymentService {
                 'status' => 'error'
             ];
         }
+    }
+    
+    /**
+     * Get Mock Checkout Response for Testing
+     */
+    private function getMockCheckoutResponse($transactionId, $paymentData) {
+        // Generate a checkout URL to our mock checkout page
+        $appUrl = getenv('APP_URL') ?: 'http://localhost/level-up-fitness/';
+        $mockCheckoutUrl = rtrim($appUrl, '/') . '/payment/mock-checkout.php?transactionId=' . urlencode($transactionId);
+        
+        return [
+            'success' => true,
+            'transaction_id' => $transactionId,
+            'checkout_url' => $mockCheckoutUrl,
+            'reference_number' => 'REF-' . time(),
+            'status' => 'pending',
+            'created_at' => date('Y-m-d H:i:s'),
+            'response' => [
+                'id' => $transactionId,
+                'status' => 'PENDING',
+                'amount' => $paymentData['amount'],
+                'currency' => 'PHP',
+                'description' => $paymentData['description'],
+                'metadata' => [
+                    'member_id' => $paymentData['member_id'],
+                    'is_mock' => true
+                ]
+            ]
+        ];
     }
     
     /**

@@ -49,6 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Generate payment ID
             $paymentId = generateUniqueID(PAYMENT_ID_PREFIX, 'payments');
 
+            // For Maya payments, set status to Pending (will be updated by webhook)
+            $paymentStatusForDB = ($formData['payment_method'] === 'Maya') ? 'Pending' : $formData['payment_status'];
+
             // Insert payment
             $stmt = $pdo->prepare("
                 INSERT INTO payments (
@@ -59,11 +62,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([
                 $paymentId, $formData['member_id'], $formData['amount'], 
                 $formData['payment_method'], $paymentDate, 
-                $formData['payment_status'], $formData['notes']
+                $paymentStatusForDB, $formData['notes']
             ]);
 
             logAction($_SESSION['user_id'], 'ADD_PAYMENT', 'Payments', 
                      'Recorded payment of ' . formatCurrency($formData['amount']) . ' from member ' . $formData['member_id']);
+            
+            // For Maya payments, redirect to checkout instead of success page
+            if ($formData['payment_method'] === 'Maya') {
+                // Create redirect URL for Maya checkout
+                $checkoutUrl = APP_URL . 'payment/checkout.php?payment_id=' . urlencode($paymentId) . 
+                              '&member_id=' . urlencode($formData['member_id']) .
+                              '&gateway=maya&amount=' . urlencode($formData['amount']) . 
+                              '&description=' . urlencode('Gym Membership Payment');
+                
+                setMessage('Payment record created. Redirecting to Maya payment gateway...', 'info');
+                header('Location: ' . $checkoutUrl);
+                exit;
+            }
             
             // Send payment notification and email
             try {
@@ -79,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $paymentId,
                         $formData['amount'],
                         $formData['payment_method'],
-                        $formData['payment_status']
+                        $paymentStatusForDB
                     );
                 }
             } catch (Exception $e) {
@@ -162,10 +178,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <option value="GCash" <?php echo ($formData['payment_method'] ?? '') === 'GCash' ? 'selected' : ''; ?>>GCash</option>
                                             <option value="Bank Transfer" <?php echo ($formData['payment_method'] ?? '') === 'Bank Transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
                                             <option value="Cheque" <?php echo ($formData['payment_method'] ?? '') === 'Cheque' ? 'selected' : ''; ?>>Cheque</option>
+                                            <option value="Maya" <?php echo ($formData['payment_method'] ?? '') === 'Maya' ? 'selected' : ''; ?>>Maya (Online)</option>
                                         </select>
                                         <?php if (isset($errors['payment_method'])): ?>
                                             <div class="invalid-feedback"><?php echo $errors['payment_method']; ?></div>
                                         <?php endif; ?>
+                                        <small class="form-text text-muted">Select "Maya (Online)" to redirect member to Maya payment gateway</small>
                                     </div>
 
                                     <div class="col-md-6 mb-3">
@@ -220,6 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <li><strong>GCash</strong> - Mobile payment</li>
                                 <li><strong>Bank</strong> - Bank transfer</li>
                                 <li><strong>Cheque</strong> - Cheque payment</li>
+                                <li><strong>Maya</strong> - Online payment (redirects to Maya)</li>
                             </ul>
 
                             <hr>

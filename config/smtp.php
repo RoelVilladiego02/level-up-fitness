@@ -7,16 +7,16 @@
  */
 
 // SMTP Server Configuration
-define('SMTP_HOST', getenv('MAIL_HOST') ?: 'sandbox.smtp.mailtrap.io');
-define('SMTP_PORT', getenv('MAIL_PORT') ?: 2525);
-define('SMTP_USERNAME', getenv('MAIL_USERNAME') ?: '4fccc12defbcf0');
-define('SMTP_PASSWORD', getenv('MAIL_PASSWORD') ?: '3075f0575febca');
+define('SMTP_HOST', getenv('MAIL_HOST') ?: 'smtp.gmail.com');
+define('SMTP_PORT', getenv('MAIL_PORT') ?: 587);
+define('SMTP_USERNAME', getenv('MAIL_USERNAME') ?: 'levelupfitnessnoreply@gmail.com');
+define('SMTP_PASSWORD', getenv('MAIL_PASSWORD') ?: 'meub jxho lmbw qcib');
 define('SMTP_ENCRYPTION', getenv('MAIL_ENCRYPTION') ?: 'tls'); // 'tls' or 'ssl'
 
 // Email Configuration
-define('MAIL_FROM_EMAIL', 'noreply@levelupfitness.local');
+define('MAIL_FROM_EMAIL', 'levelupfitnessnoreply@gmail.com');
 define('MAIL_FROM_NAME', 'Level Up Fitness');
-define('MAIL_REPLY_TO_EMAIL', 'support@levelupfitness.local');
+define('MAIL_REPLY_TO_EMAIL', 'levelupfitnessnoreply@gmail.com');
 define('MAIL_REPLY_TO_NAME', 'Level Up Fitness Support');
 
 // Email Features

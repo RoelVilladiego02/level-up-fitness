@@ -7,11 +7,8 @@
  * Supports Maya and other payment gateways
  */
 
-require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/api-init.php';
 require_once dirname(dirname(dirname(__FILE__))) . '/config/MayaPaymentService.php';
-
-// Only allow authenticated requests
-requireLogin();
 
 // Set response headers
 header('Content-Type: application/json');
@@ -32,12 +29,13 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     // Validate required fields
-    if (!isset($input['gateway']) || !isset($input['amount'])) {
-        throw new Exception('Gateway and amount are required');
+    if (!isset($input['gateway']) || !isset($input['amount']) || !isset($input['member_id'])) {
+        throw new Exception('Gateway, amount, and member_id are required');
     }
     
     $gateway = sanitize($input['gateway']);
     $amount = floatval($input['amount']);
+    $memberId = sanitize($input['member_id']);
     $paymentId = sanitize($input['payment_id'] ?? '');
     $description = sanitize($input['description'] ?? 'Gym Membership Payment');
     
@@ -55,9 +53,9 @@ try {
         throw new Exception('User not found');
     }
     
-    // Get member information
-    $memberStmt = $pdo->prepare("SELECT * FROM members WHERE user_id = ?");
-    $memberStmt->execute([$_SESSION['user_id']]);
+    // Get member information using member_id parameter
+    $memberStmt = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
+    $memberStmt->execute([$memberId]);
     $member = $memberStmt->fetch();
     
     if (!$member) {
@@ -217,12 +215,22 @@ try {
     
 } catch (Exception $e) {
     error_log('Payment Checkout Error: ' . $e->getMessage());
+    error_log('Stack Trace: ' . $e->getTraceAsString());
+    
+    // Clear output buffer to ensure clean JSON response
+    if (ob_get_length()) {
+        ob_clean();
+    }
     
     http_response_code(400);
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage(),
-        'code' => 'CHECKOUT_FAILED'
+        'code' => 'CHECKOUT_FAILED',
+        'details' => [
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]
     ]);
     exit;
 }
