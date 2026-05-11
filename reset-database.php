@@ -139,6 +139,36 @@ try {
         ");
     }
     
+    // Check if session_requests table exists, if not create it
+    $result = $pdo->query("SHOW TABLES LIKE 'session_requests'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Creating session_requests table...\n";
+        $pdo->exec("
+            CREATE TABLE session_requests (
+                request_id INT PRIMARY KEY AUTO_INCREMENT,
+                member_id VARCHAR(50) NOT NULL,
+                trainer_id VARCHAR(50) NOT NULL,
+                requested_date DATE NOT NULL,
+                requested_time TIME NOT NULL,
+                duration INT NOT NULL COMMENT 'Duration in minutes',
+                purpose VARCHAR(255),
+                status ENUM('Pending', 'Approved', 'Rejected', 'Cancelled') NOT NULL DEFAULT 'Pending',
+                trainer_notes LONGTEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
+                FOREIGN KEY (trainer_id) REFERENCES trainers(trainer_id) ON DELETE CASCADE,
+                INDEX idx_member_id (member_id),
+                INDEX idx_trainer_id (trainer_id),
+                INDEX idx_requested_date (requested_date),
+                INDEX idx_status (status),
+                INDEX idx_trainer_member (trainer_id, member_id),
+                INDEX idx_member_status (member_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+    
     echo "✓ Schema check complete\n\n";
     
     // Get all tables

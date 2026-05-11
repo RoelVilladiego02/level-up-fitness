@@ -140,6 +140,12 @@ if ($userRole === 'member' && isset($_SESSION['user_id'])) {
             <span class="luf-sidebar__label">Trainer</span>
             <ul class="luf-sidebar__list">
                 <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/trainers/my-members.php">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-users"></i></span>
+                        <span>My Members</span>
+                    </a>
+                </li>
+                <li>
                     <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/templates/">
                         <span class="luf-sidebar__link-icon"><i class="fas fa-heart"></i></span>
                         <span>Workout Templates</span>
@@ -158,9 +164,9 @@ if ($userRole === 'member' && isset($_SESSION['user_id'])) {
                     </a>
                 </li>
                 <li>
-                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/attendance/<?php echo $userRole === 'member' ? 'my-attendance.php' : 'index.php'; ?>">
-                        <span class="luf-sidebar__link-icon"><i class="fas fa-clipboard-check"></i></span>
-                        <span><?php echo $userRole === 'member' ? 'My Attendance' : 'Attendance'; ?></span>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/attendance/<?php echo $userRole === 'member' ? 'my-requests.php' : 'index.php'; ?>">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-calendar-check"></i></span>
+                        <span><?php echo $userRole === 'member' ? 'Session Requests' : 'Session Requests'; ?></span>
                     </a>
                 </li>
             </ul>
