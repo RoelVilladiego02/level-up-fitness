@@ -1,0 +1,112 @@
+<!-- 
+  Payment Integration Quick Start
+  Level Up Fitness - Add Online Payment Button to Members
+-->
+
+<!-- Add this button to member dashboard or payment listing -->
+
+<div class="row mt-4 mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Pay Your Membership Now</h5>
+                <p class="card-text text-muted">Quick and secure online payment</p>
+                
+                <button type="button" class="btn btn-primary btn-lg" 
+                        data-bs-toggle="modal" data-bs-target="#onlinePaymentModal">
+                    <i class="fas fa-credit-card"></i> Pay Online
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include the modal HTML -->
+<?php include dirname(__FILE__) . '/online-payment-modal.html'; ?>
+
+<!-- 
+  JavaScript Integration Example
+  
+  For payment status checking:
+-->
+
+<script>
+// Check payment status periodically
+async function checkPaymentStatus(transactionId) {
+    try {
+        const response = await fetch(`/level-up-fitness/api/payments/status.php?transaction_id=${transactionId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('Payment Status:', data.data.status);
+            
+            if (data.data.status === 'completed') {
+                showSuccess('Payment received! Refreshing...');
+                setTimeout(() => location.reload(), 2000);
+            }
+        }
+    } catch (error) {
+        console.error('Status check failed:', error);
+    }
+}
+
+// Start checking every 5 seconds
+if (transactionId) {
+    setInterval(() => checkPaymentStatus(transactionId), 5000);
+}
+</script>
+
+<!-- 
+  Backend Integration Example
+  
+  In payment add/edit forms, add this option:
+-->
+
+<?php
+// In modules/payments/add.php, update payment method dropdown:
+
+$paymentMethods = [
+    'Cash' => 'Cash',
+    'Card' => 'Credit/Debit Card',
+    'GCash' => 'GCash',
+    'Bank Transfer' => 'Bank Transfer',
+    'Cheque' => 'Cheque',
+    'Online - Maya' => 'Online Payment (Maya)', // NEW
+    'Online - GCash' => 'Online Payment (GCash)',
+    'Online - Credit Card' => 'Online Payment (Credit Card)'
+];
+?>
+
+<!-- Handle online payment in add.php -->
+<?php
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $paymentMethod = sanitize($_POST['payment_method'] ?? '');
+    $amount = floatval($_POST['amount'] ?? 0);
+    
+    // If online payment method selected
+    if (strpos($paymentMethod, 'Online -') !== false) {
+        // Create pending payment record
+        $paymentId = generateUniqueID(PAYMENT_ID_PREFIX, 'payments');
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO payments (
+                payment_id, member_id, amount, payment_method, 
+                payment_status, notes
+            ) VALUES (?, ?, ?, ?, 'Pending', ?)
+        ");
+        $stmt->execute([
+            $paymentId, $formData['member_id'], $amount, 
+            $paymentMethod, 'Online payment initiated'
+        ]);
+        
+        // Redirect to checkout
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'payment_id' => $paymentId,
+            'redirect' => APP_URL . 'payment/checkout?id=' . $paymentId
+        ]);
+        exit;
+    }
+}
+?>

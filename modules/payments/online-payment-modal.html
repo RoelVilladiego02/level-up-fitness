@@ -1,0 +1,164 @@
+<!-- Payment Checkout Modal for Members -->
+<!-- Add this to member dashboard or payment module -->
+
+<div class="modal fade" id="onlinePaymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-credit-card"></i> Online Payment - Maya
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Payment Method Selection -->
+                <div class="mb-4">
+                    <h6 class="mb-3">Select Payment Method</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" 
+                                       id="paymentMaya" value="maya" checked>
+                                <label class="form-check-label" for="paymentMaya">
+                                    <strong>Maya Wallet</strong>
+                                    <small class="d-block text-muted">Quick & Secure</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" 
+                                       id="paymentManual" value="manual">
+                                <label class="form-check-label" for="paymentManual">
+                                    <strong>Manual Payment</strong>
+                                    <small class="d-block text-muted">Bank Transfer, GCash, etc</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payment Amount -->
+                <div class="mb-4">
+                    <label for="paymentAmount" class="form-label">Amount to Pay</label>
+                    <div class="input-group">
+                        <span class="input-group-text">₱</span>
+                        <input type="number" class="form-control" id="paymentAmount" 
+                               name="amount" step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+                </div>
+                
+                <!-- Payment Description -->
+                <div class="mb-4">
+                    <label for="paymentDescription" class="form-label">Payment For</label>
+                    <input type="text" class="form-control" id="paymentDescription" 
+                           name="description" placeholder="Gym Membership, Session, etc" required>
+                </div>
+                
+                <!-- Processing Status -->
+                <div id="processingStatus" class="alert alert-info d-none" role="alert">
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <span id="processingMessage">Processing payment...</span>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>
+                
+                <!-- Success Message -->
+                <div id="successMessage" class="alert alert-success d-none" role="alert"></div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="processPaymentBtn">
+                    <i class="fas fa-lock"></i> Process Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const processPaymentBtn = document.getElementById('processPaymentBtn');
+    const onlinePaymentModal = document.getElementById('onlinePaymentModal');
+    
+    // Process Payment
+    processPaymentBtn.addEventListener('click', async function() {
+        const gateway = document.querySelector('input[name="paymentMethod"]:checked').value;
+        const amount = parseFloat(document.getElementById('paymentAmount').value);
+        const description = document.getElementById('paymentDescription').value;
+        
+        // Validate input
+        if (!amount || amount <= 0) {
+            showError('Please enter a valid amount');
+            return;
+        }
+        
+        if (!description.trim()) {
+            showError('Please enter payment description');
+            return;
+        }
+        
+        try {
+            // Show processing status
+            document.getElementById('processingStatus').classList.remove('d-none');
+            document.getElementById('errorMessage').classList.add('d-none');
+            document.getElementById('successMessage').classList.add('d-none');
+            processPaymentBtn.disabled = true;
+            
+            // Make API request
+            const response = await fetch('/level-up-fitness/api/payments/checkout.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    gateway: gateway,
+                    amount: amount,
+                    description: description
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Payment processing failed');
+            }
+            
+            // Redirect to checkout
+            if (data.data.checkout_url) {
+                window.location.href = data.data.checkout_url;
+            } else if (gateway === 'manual') {
+                // Show success for manual payment
+                showSuccess('Payment request submitted. Admin will process it within 24-48 hours.');
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(onlinePaymentModal).hide();
+                    location.reload();
+                }, 2000);
+            }
+            
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            document.getElementById('processingStatus').classList.add('d-none');
+            processPaymentBtn.disabled = false;
+        }
+    });
+    
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('d-none');
+    }
+    
+    function showSuccess(message) {
+        const successDiv = document.getElementById('successMessage');
+        successDiv.textContent = message;
+        successDiv.classList.remove('d-none');
+    }
+});
+</script>
