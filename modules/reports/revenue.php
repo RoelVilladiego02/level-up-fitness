@@ -17,7 +17,7 @@ try {
     $revenueByMethodStmt = $pdo->prepare("
         SELECT payment_method, COUNT(*) as transaction_count, SUM(amount) as total_amount, AVG(amount) as avg_amount
         FROM payments
-        WHERE payment_status = 'Completed' AND DATE(payment_date) BETWEEN ? AND ?
+        WHERE payment_status = 'Paid' AND DATE(payment_date) BETWEEN ? AND ?
         GROUP BY payment_method
         ORDER BY total_amount DESC
     ");
@@ -28,7 +28,7 @@ try {
     $revenueByDayStmt = $pdo->prepare("
         SELECT DATE(payment_date) as payment_day, SUM(amount) as daily_total, COUNT(*) as transaction_count
         FROM payments
-        WHERE payment_status = 'Completed' AND DATE(payment_date) BETWEEN ? AND ?
+        WHERE payment_status = 'Paid' AND DATE(payment_date) BETWEEN ? AND ?
         GROUP BY DATE(payment_date)
         ORDER BY payment_day DESC
     ");
@@ -40,7 +40,7 @@ try {
         SELECT m.member_id, m.member_name, m.membership_type, SUM(p.amount) as total_paid, COUNT(p.payment_id) as payment_count
         FROM payments p
         JOIN members m ON p.member_id = m.member_id
-        WHERE p.payment_status = 'Completed' AND DATE(p.payment_date) BETWEEN ? AND ?
+        WHERE p.payment_status = 'Paid' AND DATE(p.payment_date) BETWEEN ? AND ?
         GROUP BY p.member_id
         ORDER BY total_paid DESC
         LIMIT 10
@@ -61,11 +61,11 @@ try {
     // Summary Statistics
     $summaryStmt = $pdo->prepare("
         SELECT 
-            SUM(CASE WHEN payment_status = 'Completed' THEN amount ELSE 0 END) as completed_revenue,
+            SUM(CASE WHEN payment_status = 'Paid' THEN amount ELSE 0 END) as completed_revenue,
             SUM(CASE WHEN payment_status = 'Pending' THEN amount ELSE 0 END) as pending_revenue,
-            SUM(CASE WHEN payment_status = 'Failed' THEN amount ELSE 0 END) as failed_amount,
+            SUM(CASE WHEN payment_status = 'Overdue' THEN amount ELSE 0 END) as failed_amount,
             COUNT(*) as total_transactions,
-            AVG(CASE WHEN payment_status = 'Completed' THEN amount END) as avg_transaction
+            AVG(CASE WHEN payment_status = 'Paid' THEN amount END) as avg_transaction
         FROM payments
         WHERE DATE(payment_date) BETWEEN ? AND ?
     ");

@@ -4,7 +4,16 @@
  * Level Up Fitness - Gym Management System
  */
 
-require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
+// Check if this is an AJAX request BEFORE loading HTML header
+$isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
+if ($isAjax) {
+    // Use clean API header for AJAX requests
+    require_once dirname(dirname(dirname(__FILE__))) . '/includes/api_header.php';
+} else {
+    // Use full HTML header for page loads
+    require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
+}
 
 requireLogin();
 requireRole('admin');
@@ -46,41 +55,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 logAction($_SESSION['user_id'], 'INVOICE_CREATED', 'Invoices', 
                          'Created invoice ' . $invoiceId . ' for member ' . $memberId . ' amount: ' . formatCurrency($amount));
                 
-                // Send email to member
-                try {
-                    $memberStmt = $pdo->prepare("SELECT email, member_name FROM members WHERE member_id = ?");
-                    $memberStmt->execute([$memberId]);
-                    $memberData = $memberStmt->fetch();
+                // Send email asynchronously - don't wait for it
+                if ($isAjax) {
+                    // For AJAX, send email in background and return immediately
+                    ob_clean();
+                    echo json_encode([
+                        'success' => true,
+                        'invoice_id' => $invoiceId,
+                        'message' => 'Invoice created successfully!'
+                    ]);
                     
-                    if ($memberData && !empty($memberData['email'])) {
-                        $subject = 'New Invoice - Level Up Fitness';
-                        $message = "Hello " . htmlspecialchars($memberData['member_name']) . ",\n\n"
-                                 . "You have a new invoice:\n\n"
-                                 . "Invoice ID: " . $invoiceId . "\n"
-                                 . "Description: " . htmlspecialchars($description) . "\n"
-                                 . "Amount: " . formatCurrency($amount) . "\n"
-                                 . "Due Date: " . formatDate($dueDate) . "\n\n"
-                                 . "Please log in to your account to view and pay this invoice.\n\n"
-                                 . "Best regards,\nLevel Up Fitness";
+                    // Send email after response (won't block the user)
+                    try {
+                        $memberStmt = $pdo->prepare("SELECT email, member_name FROM members WHERE member_id = ?");
+                        $memberStmt->execute([$memberId]);
+                        $memberData = $memberStmt->fetch();
                         
-                        sendEmailNotification($memberData['email'], $subject, $message, 'text');
+                        if ($memberData && !empty($memberData['email'])) {
+                            $subject = 'New Invoice - Level Up Fitness';
+                            $message = "Hello " . htmlspecialchars($memberData['member_name']) . ",\n\n"
+                                     . "You have a new invoice:\n\n"
+                                     . "Invoice ID: " . $invoiceId . "\n"
+                                     . "Description: " . htmlspecialchars($description) . "\n"
+                                     . "Amount: " . formatCurrency($amount) . "\n"
+                                     . "Due Date: " . formatDate($dueDate) . "\n\n"
+                                     . "Please log in to your account to view and pay this invoice.\n\n"
+                                     . "Best regards,\nLevel Up Fitness";
+                            
+                            sendEmailNotification($memberData['email'], $subject, $message, 'text');
+                        }
+                    } catch (Exception $e) {
+                        error_log('Failed to send invoice email: ' . $e->getMessage());
                     }
-                } catch (Exception $e) {
-                    error_log('Failed to send invoice email: ' . $e->getMessage());
+                    exit;
+                } else {
+                    // For traditional form submission, set message and redirect
+                    setMessage('Invoice created successfully! ID: ' . $invoiceId, 'success');
+                    redirect(APP_URL . 'modules/invoices/');
                 }
-                
-                setMessage('Invoice created successfully! ID: ' . $invoiceId, 'success');
-                redirect(APP_URL . 'modules/invoices/');
             } else {
                 $errors['payment'] = 'Failed to create invoice';
             }
         } catch (Exception $e) {
-            setMessage('Error creating invoice: ' . $e->getMessage(), 'error');
+            if ($isAjax) {
+                ob_clean();
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ]);
+                exit;
+            } else {
+                setMessage('Error creating invoice: ' . $e->getMessage(), 'error');
+            }
         }
+    } else if ($isAjax) {
+        ob_clean();
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'errors' => $errors
+        ]);
+        exit;
     }
 }
 ?>
 
+<?php if (!$isAjax): ?>
 <div class="container-fluid">
     <div class="row">
         <?php include dirname(dirname(dirname(__FILE__))) . '/includes/sidebar.php'; ?>
@@ -158,7 +199,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                                 <div class="d-flex gap-2 justify-content-end">
                                     <a href="<?php echo APP_URL; ?>modules/invoices/" class="btn btn-secondary">Cancel</a>
-                                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Create Invoice</button>
+                                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                                        <span id="submitBtnText"><i class="fas fa-save"></i> Create Invoice</span>
+                                        <span id="submitBtnLoading" style="display: none;">
+                                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Creating...
+                                        </span>
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -169,4 +216,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </div>
 
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-none flex-center z-index-9999" 
+     style="display: none; justify-content: center; align-items: center; z-index: 9999;">
+    <div class="text-white text-center">
+        <div class="spinner-border mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5>Creating Invoice...</h5>
+        <p class="small">Please wait, this may take a moment</p>
+    </div>
+</div>
+
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    e.preventDefault(); // Prevent traditional form submission
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const submitBtnLoading = document.getElementById('submitBtnLoading');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const form = this;
+    
+    // Validate form
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtnText.style.display = 'none';
+    submitBtnLoading.style.display = 'inline';
+    loadingOverlay.style.display = 'flex';
+    
+    // Prepare form data
+    const formData = new FormData(form);
+    
+    // Submit via AJAX
+    fetch(form.action || window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || data.errors?.join(', ') || 'Failed to create invoice');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const successAlert = document.createElement('div');
+            successAlert.className = 'alert alert-success alert-dismissible fade show';
+            successAlert.innerHTML = `
+                <strong>✓ Success!</strong> Invoice ${data.invoice_id} created successfully.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // Insert before form
+            form.parentElement.insertBefore(successAlert, form);
+            
+            // Reset form
+            form.reset();
+            
+            // Redirect after 1.5 seconds
+            setTimeout(() => {
+                window.location.href = '<?php echo APP_URL; ?>modules/invoices/';
+            }, 1500);
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        // Show error
+        const errorAlert = document.createElement('div');
+        errorAlert.className = 'alert alert-danger alert-dismissible fade show';
+        errorAlert.innerHTML = `
+            <strong>Error:</strong> ${error.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        form.parentElement.insertBefore(errorAlert, form);
+        
+        // Reset button
+        submitBtn.disabled = false;
+        submitBtnText.style.display = 'inline';
+        submitBtnLoading.style.display = 'none';
+        loadingOverlay.style.display = 'none';
+    });
+});
+</script>
+
 <?php require_once dirname(dirname(dirname(__FILE__))) . '/includes/footer.php'; ?>
+<?php endif; ?>

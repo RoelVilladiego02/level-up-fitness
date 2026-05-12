@@ -765,10 +765,13 @@ function getUserNotifications($userId, $unreadOnly = false, $limit = 50, $offset
             $query .= " AND is_read = 0";
         }
         
-        $query .= " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        // Sanitize limit and offset - must be integers for LIMIT/OFFSET clauses
+        $limit = intval($limit);
+        $offset = intval($offset);
+        $query .= " ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
         
         $stmt = $pdo->prepare($query);
-        $stmt->execute([$userId, $limit, $offset]);
+        $stmt->execute([$userId]);
         
         return $stmt->fetchAll();
     } catch (Exception $e) {
@@ -806,13 +809,16 @@ function getUnreadNotifications($userId, $limit = 10) {
     global $pdo;
     
     try {
+        // Sanitize limit - must be integer for LIMIT clause
+        $limit = intval($limit);
+        
         $stmt = $pdo->prepare("
             SELECT * FROM notifications 
             WHERE user_id = ? AND is_read = 0 
             ORDER BY priority DESC, created_at DESC 
-            LIMIT ?
+            LIMIT $limit
         ");
-        $stmt->execute([$userId, $limit]);
+        $stmt->execute([$userId]);
         
         return $stmt->fetchAll();
     } catch (Exception $e) {

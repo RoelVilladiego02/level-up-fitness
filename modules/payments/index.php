@@ -119,86 +119,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isAdmin) {
 
 // Load payment history for display
 try {
-    // Build query - for members, show invoice payments; for admins, show legacy payments
+    // Build query - for members and admins, show invoice payments (unified data source)
+    $query = "
+        SELECT 
+            ip.payment_id, ip.invoice_id, ip.amount,
+            ip.payment_method, ip.payment_status, ip.payment_date,
+            i.description, i.due_date, i.amount as invoice_amount,
+            m.member_id, m.member_name,
+            'Invoice' as payment_type
+        FROM invoice_payments ip
+        JOIN invoices i ON ip.invoice_id = i.invoice_id
+        JOIN members m ON i.member_id = m.member_id
+        WHERE 1=1
+    ";
+    $params = [];
+    
+    // For members, filter to only their payments
     if (!$isAdmin && $currentMemberId) {
-        // MEMBER VIEW: Show invoice payments
-        $query = "
-            SELECT 
-                ip.payment_id, ip.invoice_id, ip.amount,
-                ip.payment_method, ip.payment_status, ip.payment_date,
-                i.description, i.due_date,
-                'Invoice' as payment_type
-            FROM invoice_payments ip
-            JOIN invoices i ON ip.invoice_id = i.invoice_id
-            WHERE i.member_id = ?
-        ";
-        $params = [$currentMemberId];
-        
-        // Search filter
-        if (!empty($searchTerm)) {
-            $query .= " AND (LOWER(ip.payment_id) LIKE ? OR LOWER(ip.invoice_id) LIKE ?)";
-            $search = "%".strtolower($searchTerm)."%";
-            $params = array_merge($params, [$search, $search]);
-        }
-        
-        // Status filter
-        if (!empty($filterStatus)) {
-            $query .= " AND ip.payment_status = ?";
-            $params[] = $filterStatus;
-        }
-        
-        // Get total count and sum
-        $countStmt = $pdo->prepare(str_replace(
-            'SELECT ip.payment_id, ip.invoice_id, ip.amount, ip.payment_method, ip.payment_status, ip.payment_date, i.description, i.due_date, \'Invoice\' as payment_type',
-            'SELECT COUNT(*) as total, SUM(ip.amount) as total_amount',
-            $query
-        ));
-        $countStmt->execute($params);
-        $result = $countStmt->fetch();
-        $totalRecords = $result['total'] ?? 0;
-        $totalAmount = $result['total_amount'] ?? 0;
-        $totalPages = ceil($totalRecords / $itemsPerPage);
-
-        // Get paginated results
-        $query .= " ORDER BY ip.payment_date DESC LIMIT " . (int)$itemsPerPage . " OFFSET " . (int)$offset;
-        
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        $payments = $stmt->fetchAll();
-        
-    } else {
-        // ADMIN VIEW: Show legacy payments
-        $query = "SELECT * FROM payments WHERE 1=1";
-        $params = [];
-
-        // Search filter
-        if (!empty($searchTerm)) {
-            $query .= " AND (LOWER(member_id) LIKE ? OR LOWER(payment_id) LIKE ?)";
-            $search = "%".strtolower($searchTerm)."%";
-            $params = array_merge($params, [$search, $search]);
-        }
-
-        // Status filter
-        if (!empty($filterStatus)) {
-            $query .= " AND payment_status = ?";
-            $params[] = $filterStatus;
-        }
-
-        // Get total count and sum
-        $countStmt = $pdo->prepare(str_replace('SELECT *', 'SELECT COUNT(*) as total, SUM(amount) as total_amount', $query));
-        $countStmt->execute($params);
-        $result = $countStmt->fetch();
-        $totalRecords = $result['total'] ?? 0;
-        $totalAmount = $result['total_amount'] ?? 0;
-        $totalPages = ceil($totalRecords / $itemsPerPage);
-
-        // Get paginated results
-        $query .= " ORDER BY payment_date DESC LIMIT " . (int)$itemsPerPage . " OFFSET " . (int)$offset;
-        
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        $payments = $stmt->fetchAll();
+        $query .= " AND i.member_id = ?";
+        $params[] = $currentMemberId;
     }
+    
+    // Search filter
+    if (!empty($searchTerm)) {
+        $query .= " AND (LOWER(ip.payment_id) LIKE ? OR LOWER(ip.invoice_id) LIKE ? OR LOWER(m.member_name) LIKE ?)";
+        $search = "%".strtolower($searchTerm)."%";
+        $params = array_merge($params, [$search, $search, $search]);
+    }
+    
+    // Status filter
+    if (!empty($filterStatus)) {
+        $query .= " AND ip.payment_status = ?";
+        $params[] = $filterStatus;
+    }
+    
+    // Get total count and sum
+    $countStmt = $pdo->prepare(str_replace(
+        'SELECT ip.payment_id, ip.invoice_id, ip.amount, ip.payment_method, ip.payment_status, ip.payment_date, i.description, i.due_date, i.amount as invoice_amount, m.member_id, m.member_name, \'Invoice\' as payment_type',
+        'SELECT COUNT(*) as total, SUM(ip.amount) as total_amount',
+        $query
+    ));
+    $countStmt->execute($params);
+    $result = $countStmt->fetch();
+    $totalRecords = $result['total'] ?? 0;
+    $totalAmount = $result['total_amount'] ?? 0;
+    $totalPages = ceil($totalRecords / $itemsPerPage);
+
+    // Get paginated results
+    $query .= " ORDER BY ip.payment_date DESC LIMIT " . (int)$itemsPerPage . " OFFSET " . (int)$offset;
+    
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    $payments = $stmt->fetchAll();
 
 } catch (Exception $e) {
     setMessage('Error loading payments: ' . $e->getMessage(), 'error');
@@ -220,6 +192,178 @@ $paymentSuccess = isset($_GET['success']);
             </div>
 
             <?php displayMessage(); ?>
+
+            <!-- ADMIN FINANCE MANAGEMENT SECTION -->
+            <?php if ($isAdmin): ?>
+            
+            <!-- Quick Actions -->
+            <div class="row mb-4">
+                <div class="col-lg-3">
+                    <div class="card border-left-info shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-info">
+                                <i class="fas fa-receipt"></i> Invoices
+                            </h6>
+                            <?php 
+                            $invoiceCountStmt = $pdo->prepare("SELECT COUNT(*) as count FROM invoices WHERE invoice_status != 'Cancelled'");
+                            $invoiceCountStmt->execute();
+                            echo '<h3>' . $invoiceCountStmt->fetch()['count'] . '</h3>';
+                            ?>
+                            <small class="text-muted">Total active invoices</small>
+                            <div class="mt-2">
+                                <a href="<?php echo APP_URL; ?>modules/invoices/" class="btn btn-sm btn-outline-info">
+                                    Manage Invoices
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="card border-left-warning shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-warning">
+                                <i class="fas fa-hourglass-half"></i> Pending
+                            </h6>
+                            <?php 
+                            $pendingStmt = $pdo->prepare("
+                                SELECT COUNT(*) as count FROM (
+                                    SELECT i.invoice_id, i.amount, COALESCE(SUM(ip.amount), 0) as paid_amount
+                                    FROM invoices i
+                                    LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id AND ip.payment_status = 'Paid'
+                                    WHERE i.invoice_status != 'Cancelled'
+                                    GROUP BY i.invoice_id
+                                    HAVING i.amount > paid_amount
+                                ) as pending_count
+                            ");
+                            $pendingStmt->execute();
+                            echo '<h3>' . $pendingStmt->fetch()['count'] . '</h3>';
+                            ?>
+                            <small class="text-muted">Unpaid invoices</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="card border-left-success shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-success">
+                                <i class="fas fa-check-circle"></i> Paid
+                            </h6>
+                            <?php 
+                            $paidInvoiceStmt = $pdo->prepare("
+                                SELECT COUNT(DISTINCT i.invoice_id) as count FROM invoices i
+                                LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id AND ip.payment_status = 'Paid'
+                                WHERE i.invoice_status = 'Paid'
+                            ");
+                            $paidInvoiceStmt->execute();
+                            echo '<h3>' . $paidInvoiceStmt->fetch()['count'] . '</h3>';
+                            ?>
+                            <small class="text-muted">Fully paid invoices</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="card border-left-primary shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary">
+                                <i class="fas fa-plus"></i> Record Payment
+                            </h6>
+                            <small class="text-muted">Cash, check, or other methods</small>
+                            <div class="mt-3">
+                                <a href="<?php echo APP_URL; ?>modules/payments/add.php" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-hand-holding-usd"></i> Manual Payment
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoices Awaiting Payment Collection -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-circle"></i> Invoices Awaiting Payment</h5>
+                </div>
+                <div class="card-body">
+                    <?php 
+                    try {
+                        $awaitingStmt = $pdo->prepare("
+                            SELECT 
+                                i.invoice_id, i.description, i.amount, i.due_date, i.created_at,
+                                m.member_id, m.member_name,
+                                COALESCE(SUM(ip.amount), 0) as paid_amount,
+                                (i.amount - COALESCE(SUM(ip.amount), 0)) as outstanding_amount
+                            FROM invoices i
+                            JOIN members m ON i.member_id = m.member_id
+                            LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id AND ip.payment_status = 'Paid'
+                            WHERE i.invoice_status != 'Cancelled'
+                            GROUP BY i.invoice_id
+                            HAVING (i.amount - COALESCE(SUM(ip.amount), 0)) > 0
+                            ORDER BY i.due_date ASC
+                            LIMIT 10
+                        ");
+                        $awaitingStmt->execute();
+                        $awaitingInvoices = $awaitingStmt->fetchAll();
+                        
+                        if (!empty($awaitingInvoices)):
+                    ?>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Invoice ID</th>
+                                    <th>Member</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Outstanding</th>
+                                    <th>Due Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($awaitingInvoices as $inv): 
+                                    $isOverdue = strtotime($inv['due_date']) < time();
+                                ?>
+                                <tr <?php echo $isOverdue ? 'class="table-danger"' : ''; ?>>
+                                    <td><code><?php echo $inv['invoice_id']; ?></code></td>
+                                    <td><?php echo htmlspecialchars($inv['member_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($inv['description']); ?></td>
+                                    <td><?php echo formatCurrency($inv['amount']); ?></td>
+                                    <td><strong><?php echo formatCurrency($inv['outstanding_amount']); ?></strong></td>
+                                    <td>
+                                        <?php echo formatDate($inv['due_date']); ?>
+                                        <?php if ($isOverdue): ?>
+                                            <br><small class="badge bg-danger">OVERDUE</small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <a href="<?php echo APP_URL; ?>modules/invoices/edit.php?id=<?php echo $inv['invoice_id']; ?>" 
+                                           class="btn btn-sm btn-outline-primary" title="Edit Invoice">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="<?php echo APP_URL; ?>modules/payments/add.php" 
+                                           class="btn btn-sm btn-success" title="Record Payment">
+                                            <i class="fas fa-plus"></i> Record Payment
+                                        </a>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-check-circle"></i> No invoices awaiting payment!
+                    </p>
+                    <?php endif; 
+                    } catch (Exception $e) {
+                        echo '<div class="alert alert-danger">Error loading awaiting invoices: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                    }
+                    ?>
+                </div>
+            </div>
+
+            <?php endif; ?>
+            <!-- END ADMIN FINANCE MANAGEMENT SECTION -->
 
             <!-- MEMBER PAYMENT SECTION -->
             <?php if (!$isAdmin): ?>
@@ -481,7 +625,7 @@ $paymentSuccess = isset($_GET['success']);
                                             ");
                                             $paidStmt->execute([$currentMemberId]);
                                         } else {
-                                            $paidStmt = $pdo->prepare("SELECT COUNT(*) as count FROM payments WHERE payment_status = 'Paid'");
+                                            $paidStmt = $pdo->prepare("SELECT COUNT(DISTINCT invoice_id) as count FROM invoice_payments WHERE payment_status = 'Paid'");
                                             $paidStmt->execute();
                                         }
                                         echo $paidStmt->fetch()['count'];
@@ -498,13 +642,26 @@ $paymentSuccess = isset($_GET['success']);
                                         <?php 
                                         if (!$isAdmin && $currentMemberId) {
                                             $pendingStmt = $pdo->prepare("
-                                                SELECT COUNT(*) as count FROM invoice_payments ip
-                                                JOIN invoices i ON ip.invoice_id = i.invoice_id
-                                                WHERE i.member_id = ? AND ip.payment_status IN ('Pending', 'Failed')
+                                                SELECT COUNT(*) as count FROM (
+                                                    SELECT i.invoice_id, i.amount, COALESCE(SUM(ip.amount), 0) as paid_amount
+                                                    FROM invoices i
+                                                    LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id AND ip.payment_status = 'Paid'
+                                                    WHERE i.member_id = ?
+                                                    GROUP BY i.invoice_id
+                                                    HAVING i.amount > paid_amount
+                                                ) as pending_count
                                             ");
                                             $pendingStmt->execute([$currentMemberId]);
                                         } else {
-                                            $pendingStmt = $pdo->prepare("SELECT COUNT(*) as count FROM payments WHERE payment_status IN ('Pending', 'Overdue')");
+                                            $pendingStmt = $pdo->prepare("
+                                                SELECT COUNT(*) as count FROM (
+                                                    SELECT i.invoice_id, i.amount, COALESCE(SUM(ip.amount), 0) as paid_amount
+                                                    FROM invoices i
+                                                    LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id AND ip.payment_status = 'Paid'
+                                                    GROUP BY i.invoice_id
+                                                    HAVING i.amount > paid_amount
+                                                ) as pending_count
+                                            ");
                                             $pendingStmt->execute();
                                         }
                                         echo $pendingStmt->fetch()['count'];
@@ -523,7 +680,7 @@ $paymentSuccess = isset($_GET['success']);
                                 <tr>
                                     <th>Payment ID</th>
                                     <?php if ($isAdmin): ?>
-                                        <th>Member ID</th>
+                                        <th>Member</th>
                                     <?php else: ?>
                                         <th>Invoice</th>
                                         <th>Description</th>
@@ -540,7 +697,11 @@ $paymentSuccess = isset($_GET['success']);
                                     <tr>
                                         <td><code><?php echo htmlspecialchars($payment['payment_id']); ?></code></td>
                                         <?php if ($isAdmin): ?>
-                                            <td><?php echo htmlspecialchars($payment['member_id']); ?></td>
+                                            <td>
+                                                <strong><?php echo htmlspecialchars($payment['member_name']); ?></strong>
+                                                <br>
+                                                <small class="text-muted"><?php echo htmlspecialchars($payment['member_id']); ?></small>
+                                            </td>
                                         <?php else: ?>
                                             <td><strong><?php echo htmlspecialchars($payment['invoice_id']); ?></strong></td>
                                             <td><?php echo htmlspecialchars($payment['description']); ?></td>
@@ -563,21 +724,9 @@ $paymentSuccess = isset($_GET['success']);
                                         </td>
                                         <td>
                                             <?php if ($isAdmin): ?>
-                                                <a href="<?php echo APP_URL; ?>modules/payments/invoice.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                   class="btn btn-sm btn-primary" title="Invoice">
-                                                    <i class="fas fa-file-invoice"></i>
-                                                </a>
-                                                <a href="<?php echo APP_URL; ?>modules/payments/view.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                   class="btn btn-sm btn-info" title="View">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                <a href="<?php echo APP_URL; ?>modules/payments/edit.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                   class="btn btn-sm btn-warning" title="Edit">
+                                                <a href="<?php echo APP_URL; ?>modules/invoices/edit.php?id=<?php echo urlencode($payment['invoice_id']); ?>" 
+                                                   class="btn btn-sm btn-outline-primary" title="Edit Invoice">
                                                     <i class="fas fa-edit"></i>
-                                                </a>
-                                                <a href="<?php echo APP_URL; ?>modules/payments/delete.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                   class="btn btn-sm btn-danger btn-delete" title="Delete">
-                                                    <i class="fas fa-trash"></i>
                                                 </a>
                                             <?php else: ?>
                                                 <button type="button" class="btn btn-sm btn-primary" onclick="viewInvoice('<?php echo htmlspecialchars($payment['invoice_id']); ?>')" title="View Invoice">

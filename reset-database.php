@@ -169,6 +169,125 @@ try {
         ");
     }
 
+    // Check if training_sessions table exists, if not create it
+    $result = $pdo->query("SHOW TABLES LIKE 'training_sessions'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Creating training_sessions table...\n";
+        $pdo->exec("
+            CREATE TABLE training_sessions (
+                session_id INT PRIMARY KEY AUTO_INCREMENT,
+                session_name VARCHAR(255) NOT NULL,
+                trainer_id VARCHAR(50) NOT NULL,
+                gym_id VARCHAR(50) NOT NULL,
+                session_date DATE NOT NULL,
+                session_time TIME NOT NULL,
+                duration INT NOT NULL COMMENT 'Duration in minutes',
+                max_capacity INT NOT NULL DEFAULT 20,
+                description LONGTEXT,
+                status ENUM('Scheduled', 'Ongoing', 'Completed', 'Cancelled') NOT NULL DEFAULT 'Scheduled',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (trainer_id) REFERENCES trainers(trainer_id) ON DELETE CASCADE,
+                FOREIGN KEY (gym_id) REFERENCES gyms(gym_id) ON DELETE CASCADE,
+                INDEX idx_session_date (session_date),
+                INDEX idx_trainer_id (trainer_id),
+                INDEX idx_gym_id (gym_id),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+
+    // Check if training_session_attendees table exists, if not create it
+    $result = $pdo->query("SHOW TABLES LIKE 'training_session_attendees'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Creating training_session_attendees table...\n";
+        $pdo->exec("
+            CREATE TABLE training_session_attendees (
+                attendee_id INT PRIMARY KEY AUTO_INCREMENT,
+                session_id INT NOT NULL,
+                member_id VARCHAR(50) NOT NULL,
+                check_in_time DATETIME,
+                check_out_time DATETIME,
+                attendance_status ENUM('Present', 'Absent', 'Late', 'Cancelled') NOT NULL DEFAULT 'Present',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES training_sessions(session_id) ON DELETE CASCADE,
+                FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
+                UNIQUE KEY unique_session_member (session_id, member_id),
+                INDEX idx_session_id (session_id),
+                INDEX idx_member_id (member_id),
+                INDEX idx_attendance_status (attendance_status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+
+    // Check if session_id column exists in reservations table, if not add it
+    $result = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'reservations' AND COLUMN_NAME = 'session_id'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Adding session_id column to reservations...\n";
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN session_id INT NULL");
+        $pdo->exec("ALTER TABLE reservations ADD FOREIGN KEY (session_id) REFERENCES training_sessions(session_id) ON DELETE SET NULL");
+        $pdo->exec("ALTER TABLE reservations ADD INDEX idx_session_id (session_id)");
+    }
+
+    // Check if invoices table exists, if not create it
+    $result = $pdo->query("SHOW TABLES LIKE 'invoices'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Creating invoices table...\n";
+        $pdo->exec("
+            CREATE TABLE invoices (
+                invoice_id VARCHAR(50) PRIMARY KEY,
+                member_id VARCHAR(50) NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                description VARCHAR(255) NOT NULL,
+                invoice_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                due_date DATETIME NOT NULL,
+                invoice_status ENUM('Draft', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Cancelled') NOT NULL DEFAULT 'Pending',
+                payment_method VARCHAR(50),
+                notes TEXT,
+                created_by VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
+                INDEX idx_member_id (member_id),
+                INDEX idx_status (invoice_status),
+                INDEX idx_due_date (due_date)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+
+    // Check if invoice_payments table exists, if not create it
+    $result = $pdo->query("SHOW TABLES LIKE 'invoice_payments'");
+    $rows = $result->fetchAll();
+    if (empty($rows)) {
+        echo "  Creating invoice_payments table...\n";
+        $pdo->exec("
+            CREATE TABLE invoice_payments (
+                payment_id VARCHAR(50) PRIMARY KEY,
+                invoice_id VARCHAR(50) NOT NULL,
+                member_id VARCHAR(50) NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                payment_method ENUM('Maya', 'Manual', 'Bank Transfer', 'GCash', 'Other') NOT NULL,
+                payment_status ENUM('Pending', 'Processing', 'Paid', 'Failed', 'Cancelled') NOT NULL DEFAULT 'Pending',
+                transaction_id VARCHAR(255),
+                payment_date DATETIME,
+                payment_proof_url VARCHAR(255),
+                notes TEXT,
+                created_by VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
+                FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
+                INDEX idx_invoice_id (invoice_id),
+                INDEX idx_member_id (member_id),
+                INDEX idx_status (payment_status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+
     // Check if trainer_id column exists in reservations table, if not add it
     $result = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'reservations' AND COLUMN_NAME = 'trainer_id'");
     $rows = $result->fetchAll();

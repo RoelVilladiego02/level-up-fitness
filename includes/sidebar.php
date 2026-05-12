@@ -181,18 +181,12 @@ if ($userRole === 'member' && isset($_SESSION['user_id'])) {
 
         <?php if ($userRole === 'admin'): ?>
         <div class="luf-sidebar__section">
-            <span class="luf-sidebar__label">Finance</span>
+            <span class="luf-sidebar__label">Finance & Payments</span>
             <ul class="luf-sidebar__list">
                 <li>
-                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/invoices/">
-                        <span class="luf-sidebar__link-icon"><i class="fas fa-file-invoice-dollar"></i></span>
-                        <span>Invoices</span>
-                    </a>
-                </li>
-                <li>
                     <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/payments/">
-                        <span class="luf-sidebar__link-icon"><i class="fas fa-money-bill-wave"></i></span>
-                        <span>Payments</span>
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-credit-card"></i></span>
+                        <span>Payments & Invoices</span>
                     </a>
                 </li>
             </ul>

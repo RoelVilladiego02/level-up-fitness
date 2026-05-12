@@ -28,7 +28,7 @@ try {
               FROM members m
               LEFT JOIN class_attendance ca ON m.member_id = ca.member_id
               LEFT JOIN sessions s ON m.member_id = s.member_id
-              LEFT JOIN payments p ON m.member_id = p.member_id AND p.payment_status = 'Completed'
+              LEFT JOIN payments p ON m.member_id = p.member_id AND p.payment_status = 'Paid'
               WHERE 1=1";
     $params = [];
 

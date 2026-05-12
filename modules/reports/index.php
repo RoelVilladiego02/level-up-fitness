@@ -22,7 +22,7 @@ try {
     $newMembersCount = $newMembers->fetch()['count'];
 
     // Revenue Statistics
-    $totalRevenue = $pdo->prepare("SELECT SUM(amount) as total FROM payments WHERE payment_status = 'Completed' AND DATE(payment_date) BETWEEN ? AND ?");
+    $totalRevenue = $pdo->prepare("SELECT SUM(amount) as total FROM payments WHERE payment_status = 'Paid' AND DATE(payment_date) BETWEEN ? AND ?");
     $totalRevenue->execute([$startDate, $endDate]);
     $totalRevenueAmount = $totalRevenue->fetch()['total'] ?? 0;
 
