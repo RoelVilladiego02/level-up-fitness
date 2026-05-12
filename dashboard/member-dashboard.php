@@ -69,19 +69,12 @@ try {
     $attendance = [];
 }
 
-// Get member's payment history
+// Get member's outstanding balance
 try {
-    $paymentsStmt = $pdo->prepare("
-        SELECT * FROM payments
-        WHERE member_id = ?
-        ORDER BY payment_date DESC
-        LIMIT 5
-    ");
-    $paymentsStmt->execute([$member['member_id'] ?? null]);
-    $payments = $paymentsStmt->fetchAll();
+    $outstandingBalance = getMemberOutstandingBalance($member['member_id'] ?? null);
 } catch (Exception $e) {
-    error_log('Error fetching payments: ' . $e->getMessage());
-    $payments = [];
+    error_log('Error fetching outstanding balance: ' . $e->getMessage());
+    $outstandingBalance = ['outstanding_amount' => 0];
 }
 
 // Calculate membership status
@@ -182,10 +175,15 @@ if ($member && isset($member['join_date'], $member['membership_type'])) {
                     </div>
                 </div>
                 <div class="col-md-6 col-lg-3 mb-3">
-                    <div class="dashboard-card warning position-relative">
-                        <h5>Payments</h5>
-                        <div class="number"><?php echo count($payments); ?></div>
+                    <div class="dashboard-card <?php echo ($outstandingBalance['outstanding_amount'] > 0) ? 'danger' : 'success'; ?> position-relative">
+                        <h5>Balance Due</h5>
+                        <div class="number"><?php echo formatCurrency($outstandingBalance['outstanding_amount']); ?></div>
                         <div class="icon"><i class="fas fa-credit-card"></i></div>
+                        <?php if ($outstandingBalance['outstanding_amount'] > 0): ?>
+                            <a href="<?php echo APP_URL; ?>modules/payments/pay.php" class="btn btn-sm btn-danger mt-2">
+                                Pay Now
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

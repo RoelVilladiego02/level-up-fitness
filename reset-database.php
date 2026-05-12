@@ -189,9 +189,10 @@ try {
     
     echo "✓ Schema check complete\n\n";
     
-    // Get all tables
-    $result = $pdo->query("SHOW TABLES");
-    $tables = $result->fetchAll(PDO::FETCH_COLUMN);
+    // Get all tables (exclude views)
+    $result = $pdo->query("SHOW FULL TABLES WHERE TABLE_TYPE = 'BASE TABLE'");
+    $tableResults = $result->fetchAll(PDO::FETCH_NUM);
+    $tables = array_column($tableResults, 0);
     
     // Disable foreign key checks temporarily
     $pdo->exec("SET FOREIGN_KEY_CHECKS=0");

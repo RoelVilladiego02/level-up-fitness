@@ -55,8 +55,7 @@ try {
             $updateStmt = $pdo->prepare("
                 UPDATE payment_gateway_transactions SET
                     status = ?,
-                    response_data = ?,
-                    updated_at = NOW()
+                    response_data = ?
                 WHERE transaction_id = ?
             ");
             

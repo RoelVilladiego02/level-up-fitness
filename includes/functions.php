@@ -1267,5 +1267,345 @@ function activateUserByToken($token) {
     }
 }
 
+/**
+ * ============================================
+ * INVOICE MANAGEMENT FUNCTIONS
+ * ============================================
+ * Handle invoice creation, tracking, and payment
+ */
+
+/**
+ * Create an invoice for a member
+ * @param string $memberId - Member ID
+ * @param decimal $amount - Invoice amount
+ * @param string $description - What the invoice is for
+ * @param string $dueDate - Due date (Y-m-d format)
+ * @param string $paymentMethod - Payment method (Maya, Manual, etc.)
+ * @param string $createdBy - User ID who created invoice
+ * @return string|false - Invoice ID or false on error
+ */
+function createInvoice($memberId, $amount, $description, $dueDate, $paymentMethod = 'Maya', $createdBy = null) {
+    global $pdo;
+    
+    if (!$createdBy) {
+        $createdBy = $_SESSION['user_id'] ?? 'system';
+    }
+    
+    try {
+        $invoiceId = generateUniqueID(INVOICE_ID_PREFIX, 'invoices');
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO invoices (
+                invoice_id, member_id, amount, description, 
+                invoice_date, due_date, invoice_status, payment_method, created_by
+            ) VALUES (?, ?, ?, ?, NOW(), ?, 'Pending', ?, ?)
+        ");
+        
+        $stmt->execute([
+            $invoiceId, $memberId, $amount, $description, 
+            $dueDate, $paymentMethod, $createdBy
+        ]);
+        
+        return $invoiceId;
+    } catch (Exception $e) {
+        error_log('Error creating invoice: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Get member's outstanding balance
+ * @param string $memberId - Member ID
+ * @return array - Array with total_owed, paid_amount, outstanding_amount
+ */
+function getMemberOutstandingBalance($memberId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                COALESCE(SUM(i.amount), 0) as total_owed,
+                COALESCE(SUM(ip.amount), 0) as paid_amount,
+                COALESCE(SUM(i.amount), 0) - COALESCE(SUM(ip.amount), 0) as outstanding_amount
+            FROM invoices i
+            LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id 
+                AND ip.payment_status = 'Paid'
+            WHERE i.member_id = ? AND i.invoice_status != 'Cancelled'
+        ");
+        
+        $stmt->execute([$memberId]);
+        return $stmt->fetch();
+    } catch (Exception $e) {
+        error_log('Error getting outstanding balance: ' . $e->getMessage());
+        return [
+            'total_owed' => 0,
+            'paid_amount' => 0,
+            'outstanding_amount' => 0
+        ];
+    }
+}
+
+/**
+ * Get member's pending/overdue invoices
+ * @param string $memberId - Member ID
+ * @param bool $overdueOnly - Get only overdue invoices
+ * @return array - Array of pending invoices
+ */
+function getMemberPendingInvoices($memberId, $overdueOnly = false) {
+    global $pdo;
+    
+    try {
+        $query = "
+            SELECT 
+                i.*,
+                COALESCE(SUM(ip.amount), 0) as paid_amount,
+                (i.amount - COALESCE(SUM(ip.amount), 0)) as outstanding_amount,
+                CASE 
+                    WHEN (i.amount - COALESCE(SUM(ip.amount), 0)) > 0 AND i.due_date < NOW() THEN 'Overdue'
+                    WHEN (i.amount - COALESCE(SUM(ip.amount), 0)) > 0 THEN 'Pending'
+                    ELSE 'Paid'
+                END as current_status
+            FROM invoices i
+            LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id 
+                AND ip.payment_status = 'Paid'
+            WHERE i.member_id = ? 
+                AND i.invoice_status != 'Cancelled'
+        ";
+        
+        if ($overdueOnly) {
+            $query .= " AND i.due_date < NOW()";
+        }
+        
+        $query .= " GROUP BY i.invoice_id HAVING outstanding_amount > 0 ORDER BY i.due_date ASC";
+        
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$memberId]);
+        return $stmt->fetchAll();
+    } catch (Exception $e) {
+        error_log('Error getting pending invoices: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Record a payment against an invoice
+ * @param string $invoiceId - Invoice ID
+ * @param decimal $amount - Payment amount
+ * @param string $paymentMethod - Payment method (Maya, Manual, etc.)
+ * @param string $transactionId - Optional transaction ID from payment gateway
+ * @param string $paymentStatus - Payment status (Pending, Paid, Failed)
+ * @return string|false - Payment ID or false on error
+ */
+function recordInvoicePayment($invoiceId, $amount, $paymentMethod, $transactionId = null, $paymentStatus = 'Paid') {
+    global $pdo;
+    
+    try {
+        // Get invoice details
+        $invoiceStmt = $pdo->prepare("SELECT member_id, amount FROM invoices WHERE invoice_id = ?");
+        $invoiceStmt->execute([$invoiceId]);
+        $invoice = $invoiceStmt->fetch();
+        
+        if (!$invoice) {
+            error_log("Invoice not found: $invoiceId");
+            return false;
+        }
+        
+        $paymentId = generateUniqueID(PAYMENT_ID_PREFIX, 'invoice_payments');
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO invoice_payments (
+                payment_id, invoice_id, member_id, amount, 
+                payment_method, payment_status, transaction_id, payment_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        
+        $stmt->execute([
+            $paymentId, $invoiceId, $invoice['member_id'], $amount,
+            $paymentMethod, $paymentStatus, $transactionId
+        ]);
+        
+        // Update invoice status if fully paid
+        if ($paymentStatus === 'Paid') {
+            updateInvoiceStatus($invoiceId);
+        }
+        
+        return $paymentId;
+    } catch (Exception $e) {
+        error_log('Error recording invoice payment: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Update invoice status based on payments
+ * @param string $invoiceId - Invoice ID
+ * @return bool - Success status
+ */
+function updateInvoiceStatus($invoiceId) {
+    global $pdo;
+    
+    try {
+        // Get invoice and payment info
+        $stmt = $pdo->prepare("
+            SELECT 
+                i.amount,
+                COALESCE(SUM(ip.amount), 0) as paid_amount
+            FROM invoices i
+            LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id 
+                AND ip.payment_status = 'Paid'
+            WHERE i.invoice_id = ?
+            GROUP BY i.invoice_id
+        ");
+        
+        $stmt->execute([$invoiceId]);
+        $data = $stmt->fetch();
+        
+        if (!$data) {
+            return false;
+        }
+        
+        // Determine status
+        if ($data['paid_amount'] >= $data['amount']) {
+            $newStatus = 'Paid';
+        } elseif ($data['paid_amount'] > 0) {
+            $newStatus = 'Partially Paid';
+        } else {
+            $newStatus = 'Pending';
+        }
+        
+        // Update invoice status
+        $updateStmt = $pdo->prepare("
+            UPDATE invoices 
+            SET invoice_status = ? 
+            WHERE invoice_id = ?
+        ");
+        
+        return $updateStmt->execute([$newStatus, $invoiceId]);
+    } catch (Exception $e) {
+        error_log('Error updating invoice status: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Get invoice details
+ * @param string $invoiceId - Invoice ID
+ * @return array|false - Invoice data or false if not found
+ */
+function getInvoiceDetails($invoiceId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT 
+                i.*,
+                m.member_name, m.email, m.contact_number,
+                COALESCE(SUM(ip.amount), 0) as paid_amount,
+                (i.amount - COALESCE(SUM(ip.amount), 0)) as outstanding_amount
+            FROM invoices i
+            LEFT JOIN members m ON i.member_id = m.member_id
+            LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id 
+                AND ip.payment_status = 'Paid'
+            WHERE i.invoice_id = ?
+            GROUP BY i.invoice_id
+        ");
+        
+        $stmt->execute([$invoiceId]);
+        return $stmt->fetch();
+    } catch (Exception $e) {
+        error_log('Error getting invoice details: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Get all payments for an invoice
+ * @param string $invoiceId - Invoice ID
+ * @return array - Array of payments
+ */
+function getInvoicePayments($invoiceId) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT * FROM invoice_payments 
+            WHERE invoice_id = ? 
+            ORDER BY created_at DESC
+        ");
+        
+        $stmt->execute([$invoiceId]);
+        return $stmt->fetchAll();
+    } catch (Exception $e) {
+        error_log('Error getting invoice payments: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Cancel an invoice
+ * @param string $invoiceId - Invoice ID
+ * @param string $reason - Cancellation reason
+ * @return bool - Success status
+ */
+function cancelInvoice($invoiceId, $reason = '') {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE invoices 
+            SET invoice_status = 'Cancelled', notes = ? 
+            WHERE invoice_id = ?
+        ");
+        
+        return $stmt->execute([$reason, $invoiceId]);
+    } catch (Exception $e) {
+        error_log('Error cancelling invoice: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Send invoice to member via email
+ * @param string $invoiceId - Invoice ID
+ * @param string $memberEmail - Member email
+ * @return bool - Success status
+ */
+function sendInvoiceEmail($invoiceId, $memberEmail) {
+    $invoice = getInvoiceDetails($invoiceId);
+    
+    if (!$invoice) {
+        return false;
+    }
+    
+    $subject = 'Invoice #' . $invoiceId . ' - Level Up Fitness';
+    $message = "
+Dear " . htmlspecialchars($invoice['member_name']) . ",
+
+Thank you for being a valued member of Level Up Fitness!
+
+--- INVOICE DETAILS ---
+Invoice ID: " . $invoiceId . "
+Date: " . formatDate($invoice['invoice_date']) . "
+Due Date: " . formatDate($invoice['due_date']) . "
+Amount: " . formatCurrency($invoice['amount']) . "
+Description: " . htmlspecialchars($invoice['description']) . "
+
+Outstanding Amount: " . formatCurrency($invoice['outstanding_amount']) . "
+
+Please make your payment by the due date to avoid late fees.
+
+Payment Methods:
+- Online (Maya): " . APP_URL . "modules/payments/pay.php?invoice=" . $invoiceId . "
+- Manual Transfer: Contact admin for bank details
+
+If you have any questions, please contact us.
+
+Best regards,
+Level Up Fitness Management
+    ";
+    
+    return sendEmailNotification($memberEmail, $subject, $message, 'text');
+}
+
 ?>
 

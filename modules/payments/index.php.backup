@@ -117,7 +117,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isAdmin) {
     }
 }
 
-// Load payment history for display
 try {
     // Build query - for members, show invoice payments; for admins, show legacy payments
     if (!$isAdmin && $currentMemberId) {
@@ -171,7 +170,7 @@ try {
         $query = "SELECT * FROM payments WHERE 1=1";
         $params = [];
 
-        // Search filter
+        // Search filter - search by member name or ID
         if (!empty($searchTerm)) {
             $query .= " AND (LOWER(member_id) LIKE ? OR LOWER(payment_id) LIKE ?)";
             $search = "%".strtolower($searchTerm)."%";
@@ -203,9 +202,6 @@ try {
 } catch (Exception $e) {
     setMessage('Error loading payments: ' . $e->getMessage(), 'error');
 }
-
-// Check for success message from payment gateway
-$paymentSuccess = isset($_GET['success']);
 ?>
 
 <div class="container-fluid">
@@ -426,6 +422,74 @@ $paymentSuccess = isset($_GET['success']);
             <?php endif; ?>
             <!-- END MEMBER PAYMENT SECTION -->
 
+            <?php displayMessage(); ?>
+
+            <!-- Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title mb-0"><i class="fas fa-list"></i> Total Payments</h6>
+                            <h3><?php echo $totalRecords; ?></h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title mb-0"><i class="fas fa-money-bill"></i> Total Amount</h6>
+                            <h3><?php echo formatCurrency($totalAmount); ?></h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title mb-0"><i class="fas fa-check-circle"></i> Paid</h6>
+                            <h3>
+                                <?php 
+                                if (!$isAdmin && $currentMemberId) {
+                                    $paidStmt = $pdo->prepare("
+                                        SELECT COUNT(*) as count FROM invoice_payments ip
+                                        JOIN invoices i ON ip.invoice_id = i.invoice_id
+                                        WHERE i.member_id = ? AND ip.payment_status = 'Paid'
+                                    ");
+                                    $paidStmt->execute([$currentMemberId]);
+                                } else {
+                                    $paidStmt = $pdo->prepare("SELECT COUNT(*) as count FROM payments WHERE payment_status = 'Paid'");
+                                    $paidStmt->execute();
+                                }
+                                echo $paidStmt->fetch()['count'];
+                                ?>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title mb-0"><i class="fas fa-clock"></i> Pending</h6>
+                            <h3>
+                                <?php 
+                                if (!$isAdmin && $currentMemberId) {
+                                    $pendingStmt = $pdo->prepare("
+                                        SELECT COUNT(*) as count FROM invoice_payments ip
+                                        JOIN invoices i ON ip.invoice_id = i.invoice_id
+                                        WHERE i.member_id = ? AND ip.payment_status IN ('Pending', 'Failed')
+                                    ");
+                                    $pendingStmt->execute([$currentMemberId]);
+                                } else {
+                                    $pendingStmt = $pdo->prepare("SELECT COUNT(*) as count FROM payments WHERE payment_status IN ('Pending', 'Overdue')");
+                                    $pendingStmt->execute();
+                                }
+                                echo $pendingStmt->fetch()['count'];
+                                ?>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- PAYMENT HISTORY SECTION -->
             <div class="card">
                 <div class="card-header bg-light">
@@ -459,311 +523,113 @@ $paymentSuccess = isset($_GET['success']);
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
-                                <div class="card-body">
-                                    <h6 class="card-title mb-0"><i class="fas fa-money-bill"></i> Total Amount</h6>
-                                    <h3><?php echo formatCurrency($totalAmount); ?></h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white">
-                                <div class="card-body">
-                                    <h6 class="card-title mb-0"><i class="fas fa-check-circle"></i> Paid</h6>
-                                    <h3>
-                                        <?php 
-                                        if (!$isAdmin && $currentMemberId) {
-                                            $paidStmt = $pdo->prepare("
-                                                SELECT COUNT(*) as count FROM invoice_payments ip
-                                                JOIN invoices i ON ip.invoice_id = i.invoice_id
-                                                WHERE i.member_id = ? AND ip.payment_status = 'Paid'
-                                            ");
-                                            $paidStmt->execute([$currentMemberId]);
-                                        } else {
-                                            $paidStmt = $pdo->prepare("SELECT COUNT(*) as count FROM payments WHERE payment_status = 'Paid'");
-                                            $paidStmt->execute();
-                                        }
-                                        echo $paidStmt->fetch()['count'];
-                                        ?>
-                                    </h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-white">
-                                <div class="card-body">
-                                    <h6 class="card-title mb-0"><i class="fas fa-clock"></i> Pending</h6>
-                                    <h3>
-                                        <?php 
-                                        if (!$isAdmin && $currentMemberId) {
-                                            $pendingStmt = $pdo->prepare("
-                                                SELECT COUNT(*) as count FROM invoice_payments ip
-                                                JOIN invoices i ON ip.invoice_id = i.invoice_id
-                                                WHERE i.member_id = ? AND ip.payment_status IN ('Pending', 'Failed')
-                                            ");
-                                            $pendingStmt->execute([$currentMemberId]);
-                                        } else {
-                                            $pendingStmt = $pdo->prepare("SELECT COUNT(*) as count FROM payments WHERE payment_status IN ('Pending', 'Overdue')");
-                                            $pendingStmt->execute();
-                                        }
-                                        echo $pendingStmt->fetch()['count'];
-                                        ?>
-                                    </h3>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Payments Table -->
-                    <?php if (!empty($payments)): ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Payment ID</th>
-                                    <?php if ($isAdmin): ?>
-                                        <th>Member ID</th>
-                                    <?php else: ?>
-                                        <th>Invoice</th>
-                                        <th>Description</th>
-                                    <?php endif; ?>
-                                    <th>Amount</th>
-                                    <th>Method</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($payments as $payment): ?>
-                                    <tr>
-                                        <td><code><?php echo htmlspecialchars($payment['payment_id']); ?></code></td>
                                         <?php if ($isAdmin): ?>
-                                            <td><?php echo htmlspecialchars($payment['member_id']); ?></td>
+                                            <th>Member ID</th>
                                         <?php else: ?>
-                                            <td><strong><?php echo htmlspecialchars($payment['invoice_id']); ?></strong></td>
-                                            <td><?php echo htmlspecialchars($payment['description']); ?></td>
+                                            <th>Invoice</th>
+                                            <th>Description</th>
                                         <?php endif; ?>
-                                        <td><?php echo formatCurrency($payment['amount']); ?></td>
-                                        <td>
-                                            <span class="badge bg-secondary">
-                                                <?php echo htmlspecialchars($payment['payment_method']); ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo formatDate($payment['payment_date']); ?></td>
-                                        <td>
-                                            <?php 
-                                                $statusColor = 'secondary';
-                                                if ($payment['payment_status'] === 'Paid') $statusColor = 'success';
-                                                elseif ($payment['payment_status'] === 'Pending') $statusColor = 'warning';
-                                                elseif ($payment['payment_status'] === 'Failed') $statusColor = 'danger';
-                                                echo '<span class="badge bg-' . $statusColor . '">' . htmlspecialchars($payment['payment_status']) . '</span>';
-                                            ?>
-                                        </td>
-                                        <td>
-                                            <?php if ($isAdmin): ?>
-                                                <a href="<?php echo APP_URL; ?>modules/payments/invoice.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                   class="btn btn-sm btn-primary" title="Invoice">
-                                                    <i class="fas fa-file-invoice"></i>
-                                                </a>
-                                                <a href="<?php echo APP_URL; ?>modules/payments/view.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                   class="btn btn-sm btn-info" title="View">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                <a href="<?php echo APP_URL; ?>modules/payments/edit.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                   class="btn btn-sm btn-warning" title="Edit">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                <a href="<?php echo APP_URL; ?>modules/payments/delete.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                   class="btn btn-sm btn-danger btn-delete" title="Delete">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
-                                            <?php else: ?>
-                                                <button type="button" class="btn btn-sm btn-primary" onclick="viewInvoice('<?php echo htmlspecialchars($payment['invoice_id']); ?>')" title="View Invoice">
-                                                    <i class="fas fa-eye"></i> View
-                                                </button>
-                                            <?php endif; ?>
-                                        </td>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($payments as $payment): ?>
+                                        <tr>
+                                            <td><code><?php echo htmlspecialchars($payment['payment_id']); ?></code></td>
+                                            <?php if ($isAdmin): ?>
+                                                <td><?php echo htmlspecialchars($payment['member_id']); ?></td>
+                                            <?php else: ?>
+                                                <td><strong><?php echo htmlspecialchars($payment['invoice_id']); ?></strong></td>
+                                                <td><?php echo htmlspecialchars($payment['description']); ?></td>
+                                            <?php endif; ?>
+                                            <td><?php echo formatCurrency($payment['amount']); ?></td>
+                                            <td>
+                                                <span class="badge bg-secondary">
+                                                    <?php echo htmlspecialchars($payment['payment_method']); ?>
+                                                </span>
+                                            </td>
+                                            <td><?php echo formatDate($payment['payment_date']); ?></td>
+                                            <td>
+                                                <?php 
+                                                    $statusClass = 'badge-' . strtolower(str_replace(' ', '-', $payment['payment_status']));
+                                                    $statusColor = 'secondary';
+                                                    if ($payment['payment_status'] === 'Paid') $statusColor = 'success';
+                                                    elseif ($payment['payment_status'] === 'Pending') $statusColor = 'warning';
+                                                    elseif ($payment['payment_status'] === 'Failed') $statusColor = 'danger';
+                                                    echo '<span class="badge bg-' . $statusColor . '">' . htmlspecialchars($payment['payment_status']) . '</span>';
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <?php if ($isAdmin): ?>
+                                                    <a href="<?php echo APP_URL; ?>modules/payments/invoice.php?id=<?php echo $payment['payment_id']; ?>" 
+                                                       class="btn btn-sm btn-primary" title="Invoice">
+                                                        <i class="fas fa-file-invoice"></i>
+                                                    </a>
+                                                    <a href="<?php echo APP_URL; ?>modules/payments/view.php?id=<?php echo $payment['payment_id']; ?>" 
+                                                       class="btn btn-sm btn-info" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="<?php echo APP_URL; ?>modules/payments/edit.php?id=<?php echo $payment['payment_id']; ?>" 
+                                                       class="btn btn-sm btn-warning" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="<?php echo APP_URL; ?>modules/payments/delete.php?id=<?php echo $payment['payment_id']; ?>" 
+                                                       class="btn btn-sm btn-danger btn-delete" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <a href="<?php echo APP_URL; ?>modules/invoices/view.php?id=<?php echo $payment['invoice_id']; ?>" 
+                                                       class="btn btn-sm btn-primary" title="View Invoice">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </a>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
 
-                    <!-- Pagination -->
-                    <?php if ($totalPages > 1): ?>
-                    <nav aria-label="Payment history pagination">
-                        <ul class="pagination justify-content-center">
-                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                                <li class="page-item <?php echo $i === (int)$page ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?><?php echo $searchTerm ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo $filterStatus ? '&status=' . urlencode($filterStatus) : ''; ?>">
-                                        <?php echo $i; ?>
-                                    </a>
-                                </li>
-                            <?php endfor; ?>
-                        </ul>
-                    </nav>
-                    <?php endif; ?>
-                    <?php else: ?>
-                    <p class="text-muted mb-0">
-                        <i class="fas fa-inbox"></i> No payments found.
-                    </p>
+                        <?php if ($totalPages > 1): ?>
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination justify-content-center">
+                                    <?php if ($page > 1): ?>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1<?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo !empty($filterStatus) ? '&status=' . urlencode($filterStatus) : ''; ?>">First</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=<?php echo $page - 1; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo !empty($filterStatus) ? '&status=' . urlencode($filterStatus) : ''; ?>">Previous</a>
+                                        </li>
+                                    <?php endif; ?>
+
+                                    <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
+                                        <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                                            <a class="page-link" href="?page=<?php echo $i; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo !empty($filterStatus) ? '&status=' . urlencode($filterStatus) : ''; ?>">
+                                                <?php echo $i; ?>
+                                            </a>
+                                        </li>
+                                    <?php endfor; ?>
+
+                                    <?php if ($page < $totalPages): ?>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=<?php echo $page + 1; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo !empty($filterStatus) ? '&status=' . urlencode($filterStatus) : ''; ?>">Next</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=<?php echo $totalPages; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo !empty($filterStatus) ? '&status=' . urlencode($filterStatus) : ''; ?>">Last</a>
+                                        </li>
+                                    <?php endif; ?>
+                                </ul>
+                            </nav>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
-
         </main>
     </div>
 </div>
-
-<!-- Invoice Details Modal -->
-<div class="modal fade" id="invoiceModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Invoice Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="invoiceDetails">
-                <div class="text-center"><span class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></span></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" onclick="printInvoice()">
-                    <i class="fas fa-print"></i> Print
-                </button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Payment Form JavaScript -->
-<?php if (!$isAdmin): ?>
-<script>
-function updatePaymentAmount() {
-    const select = document.getElementById('invoiceSelect');
-    if (!select) return;
-    
-    const selectedOption = select.options[select.selectedIndex];
-    const outstanding = parseFloat(selectedOption.getAttribute('data-outstanding')) || 0;
-    
-    document.getElementById('outstandingAmount').textContent = '₱' + outstanding.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    document.getElementById('amountToPay').value = outstanding.toFixed(2);
-    document.getElementById('amountToPay').max = outstanding;
-}
-
-function selectInvoice(invoiceId, outstanding) {
-    const select = document.getElementById('invoiceSelect');
-    if (!select) return;
-    
-    select.value = invoiceId;
-    updatePaymentAmount();
-    document.getElementById('amountToPay').focus();
-    
-    // Scroll to form
-    const cardHeader = document.querySelector('.card-header.bg-primary');
-    if (cardHeader) {
-        cardHeader.scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-const payFullBtn = document.getElementById('payFullBtn');
-if (payFullBtn) {
-    payFullBtn.addEventListener('click', function() {
-        const select = document.getElementById('invoiceSelect');
-        if (select && select.value) {
-            updatePaymentAmount();
-        } else {
-            alert('Please select an invoice first');
-        }
-    });
-}
-
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    const select = document.getElementById('invoiceSelect');
-    if (select) {
-        updatePaymentAmount();
-    }
-});
-</script>
-<?php endif; ?>
-
-<script>
-async function viewInvoice(invoiceId) {
-    const modal = new bootstrap.Modal(document.getElementById('invoiceModal'));
-    const detailsDiv = document.getElementById('invoiceDetails');
-    
-    detailsDiv.innerHTML = '<div class="text-center"><span class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></span></div>';
-    modal.show();
-    
-    try {
-        const url = window.APP_URL + 'api/invoices/get-invoice-details.php?id=' + encodeURIComponent(invoiceId);
-        console.log('Fetching invoice from:', url);
-        
-        const response = await fetch(url);
-        const text = await response.text();
-        
-        console.log('Response status:', response.status);
-        console.log('Response text:', text);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${text}`);
-        }
-        
-        const data = JSON.parse(text);
-        
-        if (data.success) {
-            detailsDiv.innerHTML = data.html;
-            window.currentInvoiceId = invoiceId;
-        } else {
-            detailsDiv.innerHTML = '<div class="alert alert-danger"><strong>Error:</strong> ' + (data.error || 'Unknown error') + '</div>';
-        }
-    } catch (error) {
-        console.error('Invoice fetch error:', error);
-        detailsDiv.innerHTML = '<div class="alert alert-danger"><strong>Error loading invoice:</strong> ' + error.message + '</div>';
-    }
-}
-
-function printInvoice() {
-    const detailsDiv = document.getElementById('invoiceDetails');
-    const invoiceContent = detailsDiv.innerHTML;
-    const printWindow = window.open('', '', 'height=600,width=800');
-    
-    printWindow.document.write('<html><head><title>Invoice</title>');
-    printWindow.document.write('<style>');
-    printWindow.document.write('body { font-family: Arial, sans-serif; margin: 20px; }');
-    printWindow.document.write('.row { display: flex; margin-bottom: 15px; }');
-    printWindow.document.write('.col-md-6 { flex: 1; margin-right: 15px; }');
-    printWindow.document.write('.col-md-4 { flex: 0 0 calc(33.333% - 10px); margin-right: 15px; }');
-    printWindow.document.write('.col-md-4:last-child { margin-right: 0; }');
-    printWindow.document.write('h6 { color: #666; font-size: 12px; text-transform: uppercase; margin: 0 0 5px 0; }');
-    printWindow.document.write('p { margin: 0 0 10px 0; }');
-    printWindow.document.write('.card { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9; }');
-    printWindow.document.write('.card-body { padding: 0; }');
-    printWindow.document.write('.text-center { text-align: center; }');
-    printWindow.document.write('.table { width: 100%; border-collapse: collapse; margin-top: 15px; }');
-    printWindow.document.write('.table th, .table td { padding: 10px; border: 1px solid #ddd; text-align: left; }');
-    printWindow.document.write('.table th { background: #f5f5f5; font-weight: bold; }');
-    printWindow.document.write('.badge { display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; }');
-    printWindow.document.write('.badge.bg-success { background-color: #28a745; color: white; }');
-    printWindow.document.write('.badge.bg-warning { background-color: #ffc107; color: black; }');
-    printWindow.document.write('.badge.bg-danger { background-color: #dc3545; color: white; }');
-    printWindow.document.write('.badge.bg-secondary { background-color: #6c757d; color: white; }');
-    printWindow.document.write('code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 12px; }');
-    printWindow.document.write('.alert { padding: 15px; margin-bottom: 15px; border: 1px solid; border-radius: 3px; }');
-    printWindow.document.write('.alert-danger { border-color: #f8d7da; background: #f8d7da; color: #721c24; }');
-    printWindow.document.write('h4 { margin: 0; }');
-    printWindow.document.write('</style></head><body>');
-    printWindow.document.write(invoiceContent);
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    
-    setTimeout(() => {
-        printWindow.print();
-    }, 250);
-}
-</script>
 
 <?php require_once dirname(dirname(dirname(__FILE__))) . '/includes/footer.php'; ?>

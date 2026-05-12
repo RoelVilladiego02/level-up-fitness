@@ -80,6 +80,18 @@ if (!empty($reservationId)) {
         setMessage('Error loading reservation: ' . $e->getMessage(), 'error');
     }
 }
+
+// Get associated training session if exists
+$session = null;
+if ($reservation && !empty($reservation['session_id'])) {
+    try {
+        $sessionStmt = $pdo->prepare("SELECT ts.*, g.gym_name FROM training_sessions ts LEFT JOIN gyms g ON ts.gym_id = g.gym_id WHERE ts.session_id = ?");
+        $sessionStmt->execute([$reservation['session_id']]);
+        $session = $sessionStmt->fetch();
+    } catch (Exception $e) {
+        error_log('Error loading training session: ' . $e->getMessage());
+    }
+}
 ?>
 
 <div class="container-fluid">
@@ -154,6 +166,52 @@ if (!empty($reservationId)) {
                             <?php endif; ?>
                         </div>
                     </div>
+
+                    <?php if ($session): ?>
+                    <div class="card mb-3">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-calendar-check"></i> Associated Training Session</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>
+                                <strong>Session ID:</strong> <code><?php echo htmlspecialchars($session['session_id']); ?></code><br>
+                                <strong>Session Name:</strong> <?php echo htmlspecialchars($session['session_name']); ?><br>
+                                <strong>Date:</strong> <?php echo formatDate($session['session_date']); ?><br>
+                                <strong>Time:</strong> <?php echo substr($session['session_time'], 0, 5); ?><br>
+                                <strong>Duration:</strong> <?php echo htmlspecialchars($session['duration']); ?> minutes<br>
+                                <strong>Gym:</strong> <?php echo htmlspecialchars($session['gym_name'] ?? 'N/A'); ?>
+                            </p>
+                            <hr>
+                            <p>
+                                <strong>Status:</strong><br>
+                                <span class="badge <?php 
+                                    echo $session['status'] === 'Scheduled' ? 'bg-info' : 
+                                         ($session['status'] === 'Ongoing' ? 'bg-warning' : 
+                                         ($session['status'] === 'Completed' ? 'bg-success' : 'bg-danger'));
+                                ?>">
+                                    <?php echo htmlspecialchars($session['status']); ?>
+                                </span>
+                            </p>
+                            <hr>
+                            <a href="<?php echo APP_URL; ?>modules/sessions/view.php?id=<?php echo $session['session_id']; ?>" 
+                               class="btn btn-sm btn-success">
+                                <i class="fas fa-link"></i> View Training Session
+                            </a>
+                        </div>
+                    </div>
+                    <?php elseif ($reservation && $reservation['status'] === 'Confirmed'): ?>
+                    <div class="card mb-3">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Associated Training Session</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-0">
+                                No training session is currently associated with this confirmed reservation. 
+                                This is a data integrity issue that should be resolved.
+                            </p>
+                        </div>
+                    </div>
+                    <?php endif; ?>
 
                     <?php if ($member): ?>
                     <div class="card mb-3">

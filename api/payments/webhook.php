@@ -107,8 +107,7 @@ try {
             status = ?,
             response_data = ?,
             webhook_data = ?,
-            completed_at = NOW(),
-            updated_at = NOW()
+            completed_at = NOW()
         WHERE transaction_id = ?
     ");
     
@@ -137,29 +136,80 @@ try {
         // Map gateway status to system payment status
         $systemPaymentStatus = mapGatewayStatusToPaymentStatus($paymentStatus);
         
-        $updatePaymentStmt = $pdo->prepare("
-            UPDATE payments SET
-                payment_status = ?,
-                gateway_transaction_id = ?,
-                updated_at = NOW()
-            WHERE payment_id = ?
+        // Check if this is an invoice payment (new system)
+        $invoicePaymentStmt = $pdo->prepare("
+            SELECT ip.*
+            FROM invoice_payments ip
+            WHERE ip.payment_id = ?
         ");
+        $invoicePaymentStmt->execute([$paymentId]);
+        $invoicePayment = $invoicePaymentStmt->fetch();
         
-        $updatePaymentStmt->execute([
-            $systemPaymentStatus,
-            $transactionId,
-            $paymentId
-        ]);
+        if ($invoicePayment) {
+            // NEW SYSTEM: Update invoice_payments table
+            $invoicePaymentStatus = ($systemPaymentStatus === 'Paid') ? 'Paid' : 'Failed';
+            
+            $updateInvoicePaymentStmt = $pdo->prepare("
+                UPDATE invoice_payments SET
+                    payment_status = ?,
+                    transaction_id = ?,
+                    payment_date = NOW(),
+                    updated_at = NOW()
+                WHERE payment_id = ?
+            ");
+            
+            $updateInvoicePaymentStmt->execute([
+                $invoicePaymentStatus,
+                $transactionId,
+                $paymentId
+            ]);
+            
+            // Auto-update invoice status if payment successful
+            if ($systemPaymentStatus === 'Paid') {
+                updateInvoiceStatus($invoicePayment['invoice_id']);
+            }
+            
+        } else {
+            // OLD SYSTEM: Update legacy payments table (backward compatibility)
+            $updatePaymentStmt = $pdo->prepare("
+                UPDATE payments SET
+                    payment_status = ?,
+                    gateway_transaction_id = ?
+                WHERE payment_id = ?
+            ");
+            
+            $updatePaymentStmt->execute([
+                $systemPaymentStatus,
+                $transactionId,
+                $paymentId
+            ]);
+        }
         
-        // Get payment details
-        $paymentStmt = $pdo->prepare("
-            SELECT p.*, m.email, m.member_name, m.user_id
-            FROM payments p
-            JOIN members m ON p.member_id = m.member_id
-            WHERE p.payment_id = ?
-        ");
-        $paymentStmt->execute([$paymentId]);
-        $payment = $paymentStmt->fetch();
+        // Get payment details for notification
+        if ($invoicePayment) {
+            // Get from new system
+            $paymentDetailStmt = $pdo->prepare("
+                SELECT m.email, m.member_name, m.user_id, i.invoice_id, i.description
+                FROM invoice_payments ip
+                JOIN invoices i ON ip.invoice_id = i.invoice_id
+                JOIN members m ON i.member_id = m.member_id
+                WHERE ip.payment_id = ?
+            ");
+            $paymentDetailStmt->execute([$paymentId]);
+            $payment = $paymentDetailStmt->fetch();
+            $invoiceId = $payment['invoice_id'] ?? null;
+        } else {
+            // Get from old system
+            $paymentStmt = $pdo->prepare("
+                SELECT p.*, m.email, m.member_name, m.user_id
+                FROM payments p
+                JOIN members m ON p.member_id = m.member_id
+                WHERE p.payment_id = ?
+            ");
+            $paymentStmt->execute([$paymentId]);
+            $payment = $paymentStmt->fetch();
+            $invoiceId = null;
+        }
         
         // ====================================================================
         // SEND NOTIFICATIONS

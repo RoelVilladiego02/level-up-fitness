@@ -106,6 +106,12 @@ if ($userRole === 'member' && isset($_SESSION['user_id'])) {
                         <span>My Trainer</span>
                     </a>
                 </li>
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/payments/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-money-bill-wave"></i></span>
+                        <span>Payments</span>
+                    </a>
+                </li>
                 <?php endif; ?>
                 <li>
                     <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/templates/">
@@ -177,6 +183,12 @@ if ($userRole === 'member' && isset($_SESSION['user_id'])) {
         <div class="luf-sidebar__section">
             <span class="luf-sidebar__label">Finance</span>
             <ul class="luf-sidebar__list">
+                <li>
+                    <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/invoices/">
+                        <span class="luf-sidebar__link-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+                        <span>Invoices</span>
+                    </a>
+                </li>
                 <li>
                     <a class="luf-sidebar__link" href="<?php echo APP_URL; ?>modules/payments/">
                         <span class="luf-sidebar__link-icon"><i class="fas fa-money-bill-wave"></i></span>

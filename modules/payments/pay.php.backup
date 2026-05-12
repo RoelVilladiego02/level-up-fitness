@@ -1,0 +1,362 @@
+<?php
+/**
+ * Member Payment Interface
+ * Level Up Fitness - Gym Management System
+ * 
+ * Allows members to view invoices and pay outstanding amounts
+ * Supports both Maya online payments and manual payment methods
+ */
+
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
+
+requireLogin();
+requireRole('member');
+
+$userInfo = getUserInfo();
+$member = null;
+$outstandingBalance = null;
+$pendingInvoices = [];
+$errors = [];
+$paymentMethod = 'Maya';
+
+// Get member details
+try {
+    $memberStmt = $pdo->prepare("SELECT member_id, member_name, email FROM members WHERE user_id = ?");
+    $memberStmt->execute([$userInfo['user_id']]);
+    $member = $memberStmt->fetch();
+    
+    if (!$member) {
+        setMessage('Member profile not found', 'error');
+        redirect(APP_URL . 'dashboard/');
+    }
+    
+    // Get outstanding balance
+    $outstandingBalance = getMemberOutstandingBalance($member['member_id']);
+    
+    // Get pending invoices
+    $pendingInvoices = getMemberPendingInvoices($member['member_id']);
+    
+} catch (Exception $e) {
+    setMessage('Error loading member information: ' . $e->getMessage(), 'error');
+}
+
+// Handle payment form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $invoiceId = sanitize($_POST['invoice_id'] ?? '');
+    $amountToPay = floatval($_POST['amount_to_pay'] ?? 0);
+    
+    // Validation
+    if (empty($invoiceId)) {
+        $errors['invoice_id'] = 'Please select an invoice to pay';
+    }
+    
+    if ($amountToPay <= 0) {
+        $errors['amount_to_pay'] = 'Payment amount must be greater than 0';
+    }
+    
+    if (!empty($invoiceId) && $amountToPay > 0) {
+        // Get invoice details for validation
+        $invoiceData = getInvoiceDetails($invoiceId);
+        
+        if (!$invoiceData || $invoiceData['member_id'] !== $member['member_id']) {
+            $errors['invoice_id'] = 'Invalid invoice selected';
+        } elseif ($amountToPay > $invoiceData['outstanding_amount']) {
+            $errors['amount_to_pay'] = 'Payment amount exceeds outstanding balance of ' . formatCurrency($invoiceData['outstanding_amount']);
+        }
+    }
+    
+    // If no errors, process payment via Maya
+    if (empty($errors)) {
+        try {
+            // Create payment record with Maya as default method
+            $paymentId = recordInvoicePayment(
+                $invoiceId,
+                $amountToPay,
+                'Maya',
+                null,
+                'Pending'
+            );
+            
+            if ($paymentId) {
+                // Redirect to Maya checkout
+                $checkoutUrl = APP_URL . 'payment/checkout.php?' . http_build_query([
+                    'payment_id' => $paymentId,
+                    'invoice_id' => $invoiceId,
+                    'member_id' => $member['member_id'],
+                    'gateway' => 'maya',
+                    'amount' => $amountToPay,
+                    'description' => 'Invoice Payment #' . $invoiceId
+                ]);
+                
+                logAction(
+                    $userInfo['user_id'],
+                    'INITIATE_PAYMENT',
+                    'Invoices',
+                    'Member initiated payment of ' . formatCurrency($amountToPay) . ' for invoice ' . $invoiceId
+                );
+                
+                redirect($checkoutUrl);
+            } else {
+                $errors['payment'] = 'Failed to create payment record';
+            }
+        } catch (Exception $e) {
+            error_log('Payment processing error: ' . $e->getMessage());
+            $errors['payment'] = 'Payment processing error: ' . $e->getMessage();
+        }
+    }
+}
+
+// Check for success message from payment gateway
+$paymentSuccess = isset($_GET['success']);
+?>
+
+<div class="container-fluid">
+    <div class="row">
+        <?php include dirname(dirname(dirname(__FILE__))) . '/includes/sidebar.php'; ?>
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+            
+            <div class="page-header">
+                <h1><i class="fas fa-wallet"></i> Pay Your Invoices</h1>
+                <p>View and pay your outstanding membership fees</p>
+            </div>
+
+            <?php displayMessage(); ?>
+
+            <!-- Outstanding Balance Summary -->
+            <?php if ($outstandingBalance && $outstandingBalance['outstanding_amount'] > 0): ?>
+            <div class="row mb-4">
+                <div class="col-lg-4 mb-3">
+                    <div class="card border-left-primary shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary">
+                                <i class="fas fa-exclamation-circle"></i> Total Due
+                            </h6>
+                            <h3 class="text-danger"><?php echo formatCurrency($outstandingBalance['outstanding_amount']); ?></h3>
+                            <small class="text-muted">Amount you need to pay</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 mb-3">
+                    <div class="card border-left-success shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-success">
+                                <i class="fas fa-check-circle"></i> Already Paid
+                            </h6>
+                            <h3><?php echo formatCurrency($outstandingBalance['paid_amount']); ?></h3>
+                            <small class="text-muted">Total payments received</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 mb-3">
+                    <div class="card border-left-info shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-info">
+                                <i class="fas fa-file-invoice"></i> Total Billed
+                            </h6>
+                            <h3><?php echo formatCurrency($outstandingBalance['total_owed']); ?></h3>
+                            <small class="text-muted">All invoices issued</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php elseif ($outstandingBalance): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> <strong>All paid up!</strong> You don't have any outstanding invoices.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
+
+            <!-- Payment Form -->
+            <?php if (!empty($pendingInvoices) || !empty($errors)): ?>
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-credit-card"></i> Make a Payment</h5>
+                </div>
+                <div class="card-body">
+                    <?php if (!empty($errors)): ?>
+                        <div class="alert alert-danger" role="alert">
+                            <strong>Please fix the following errors:</strong>
+                            <ul class="mb-0">
+                                <?php foreach ($errors as $error): ?>
+                                    <li><?php echo $error; ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" class="needs-validation">
+                        <div class="row">
+                            <!-- Select Invoice -->
+                            <div class="col-md-6 mb-3">
+                                <label for="invoiceSelect" class="form-label">
+                                    <strong>Select Invoice</strong>
+                                </label>
+                                <select class="form-control <?php echo isset($errors['invoice_id']) ? 'is-invalid' : ''; ?>" 
+                                        id="invoiceSelect" name="invoice_id" required onchange="updatePaymentAmount()">
+                                    <option value="">-- Choose an invoice --</option>
+                                    <?php foreach ($pendingInvoices as $invoice): ?>
+                                        <option value="<?php echo $invoice['invoice_id']; ?>" 
+                                                data-outstanding="<?php echo $invoice['outstanding_amount']; ?>"
+                                                data-description="<?php echo htmlspecialchars($invoice['description']); ?>">
+                                            <?php echo $invoice['invoice_id']; ?> - <?php echo htmlspecialchars($invoice['description']); ?> 
+                                            (Due: <?php echo formatDate($invoice['due_date']); ?>) 
+                                            - <?php echo formatCurrency($invoice['outstanding_amount']); ?> outstanding
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php if (isset($errors['invoice_id'])): ?>
+                                    <div class="invalid-feedback"><?php echo $errors['invoice_id']; ?></div>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Amount to Pay -->
+                            <div class="col-md-6 mb-3">
+                                <label for="amountToPay" class="form-label">
+                                    <strong>Amount to Pay</strong>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input type="number" class="form-control <?php echo isset($errors['amount_to_pay']) ? 'is-invalid' : ''; ?>" 
+                                           id="amountToPay" name="amount_to_pay" step="0.01" min="0" 
+                                           placeholder="0.00" required>
+                                    <button class="btn btn-outline-secondary" type="button" id="payFullBtn">
+                                        Pay Full Amount
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">
+                                    Outstanding: <span id="outstandingAmount">₱0.00</span>
+                                </small>
+                                <?php if (isset($errors['amount_to_pay'])): ?>
+                                    <div class="invalid-feedback"><?php echo $errors['amount_to_pay']; ?></div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <!-- Payment Method Info -->
+                        <div class="alert alert-info mb-3">
+                            <strong><i class="fas fa-info-circle"></i> Maya Payment</strong><br>
+                            Secure online payment via Maya. You'll be redirected to the Maya payment gateway to complete the transaction.
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-lock"></i> Proceed to Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Invoice History -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Invoice History</h5>
+                </div>
+                <div class="card-body">
+                    <?php if (!empty($pendingInvoices) || !empty($errors['payment'])): ?>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Invoice ID</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                        <th>Due Date</th>
+                                        <th>Outstanding</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($pendingInvoices as $invoice): 
+                                        $isOverdue = strtotime($invoice['due_date']) < time();
+                                    ?>
+                                        <tr <?php echo $isOverdue ? 'class="table-danger"' : ''; ?>>
+                                            <td>
+                                                <strong><?php echo $invoice['invoice_id']; ?></strong>
+                                            </td>
+                                            <td><?php echo htmlspecialchars($invoice['description']); ?></td>
+                                            <td><?php echo formatCurrency($invoice['amount']); ?></td>
+                                            <td>
+                                                <?php echo formatDate($invoice['due_date']); ?>
+                                                <?php if ($isOverdue): ?>
+                                                    <br><small class="badge bg-danger">OVERDUE</small>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><strong><?php echo formatCurrency($invoice['outstanding_amount']); ?></strong></td>
+                                            <td>
+                                                <?php
+                                                if ($invoice['outstanding_amount'] == 0) {
+                                                    echo '<span class="badge bg-success">Paid</span>';
+                                                } elseif ($invoice['paid_amount'] > 0) {
+                                                    echo '<span class="badge bg-warning">Partially Paid</span>';
+                                                } elseif ($isOverdue) {
+                                                    echo '<span class="badge bg-danger">Overdue</span>';
+                                                } else {
+                                                    echo '<span class="badge bg-info">Pending</span>';
+                                                }
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <a href="#" class="btn btn-sm btn-outline-primary" 
+                                                   onclick="selectInvoice('<?php echo $invoice['invoice_id']; ?>', <?php echo $invoice['outstanding_amount']; ?>); return false;">
+                                                    Pay Now
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-check-circle"></i> No pending invoices. Your account is all paid up!
+                        </p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+function updatePaymentAmount() {
+    const select = document.getElementById('invoiceSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const outstanding = parseFloat(selectedOption.getAttribute('data-outstanding')) || 0;
+    
+    document.getElementById('outstandingAmount').textContent = '₱' + outstanding.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    document.getElementById('amountToPay').value = outstanding.toFixed(2);
+    document.getElementById('amountToPay').max = outstanding;
+}
+
+
+
+function selectInvoice(invoiceId, outstanding) {
+    document.getElementById('invoiceSelect').value = invoiceId;
+    updatePaymentAmount();
+    document.getElementById('amountToPay').focus();
+    
+    // Scroll to form
+    document.querySelector('.card-header.bg-light').scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('payFullBtn').addEventListener('click', function() {
+    const select = document.getElementById('invoiceSelect');
+    if (select.value) {
+        updatePaymentAmount();
+    } else {
+        alert('Please select an invoice first');
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updatePaymentAmount();
+});
+</script>
+
+<?php require_once dirname(dirname(dirname(__FILE__))) . '/includes/footer.php'; ?>

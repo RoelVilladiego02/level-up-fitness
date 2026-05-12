@@ -72,6 +72,7 @@ define('WORKOUT_ID_PREFIX', 'WRK');
 define('WORKOUT_PLAN_ID_PREFIX', 'WP');
 define('SESSION_ID_PREFIX', 'SES');
 define('PAYMENT_ID_PREFIX', 'PAY');
+define('INVOICE_ID_PREFIX', 'INV');
 define('ATTENDANCE_ID_PREFIX', 'ATT');
 define('RESERVATION_ID_PREFIX', 'RES');
 define('GYM_ID_PREFIX', 'GYM');
