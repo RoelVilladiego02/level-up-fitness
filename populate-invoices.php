@@ -12,7 +12,7 @@ echo "╚═══════════════════════�
 
 try {
     // Get all active members
-    $stmt = $pdo->query("SELECT member_id, member_name FROM members WHERE status = 'Active' LIMIT 5");
+    $stmt = $pdo->query("SELECT member_id, member_name FROM members WHERE status = 'Active' ORDER BY member_id");
     $members = $stmt->fetchAll();
 
     if (empty($members)) {

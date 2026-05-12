@@ -13,6 +13,12 @@ $invoices = [];
 $isAdmin = $_SESSION['user_type'] === 'admin';
 $currentMemberId = null;
 
+// Pagination setup
+$itemsPerPage = 10;
+$page = (int)($_GET['page'] ?? 1);
+if ($page < 1) $page = 1;
+$offset = ($page - 1) * $itemsPerPage;
+
 // Get member ID if user is a member
 if (!$isAdmin && $_SESSION['user_type'] === 'member') {
     try {
@@ -33,6 +39,11 @@ if (!$isAdmin && $_SESSION['user_type'] === 'member') {
 
 try {
     if ($isAdmin) {
+        // ADMIN: Count total invoices
+        $countStmt = $pdo->prepare("SELECT COUNT(*) as count FROM invoices");
+        $countStmt->execute();
+        $totalInvoices = $countStmt->fetch()['count'];
+        
         // ADMIN: Show all invoices
         $stmt = $pdo->prepare("
             SELECT 
@@ -45,9 +56,17 @@ try {
             LEFT JOIN invoice_payments ip ON i.invoice_id = ip.invoice_id AND ip.payment_status = 'Paid'
             GROUP BY i.invoice_id
             ORDER BY i.created_at DESC
+            LIMIT :limit OFFSET :offset
         ");
+        $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
     } else {
+        // MEMBER: Count total invoices
+        $countStmt = $pdo->prepare("SELECT COUNT(*) as count FROM invoices WHERE member_id = ?");
+        $countStmt->execute([$currentMemberId]);
+        $totalInvoices = $countStmt->fetch()['count'];
+        
         // MEMBER: Show only their own invoices
         $stmt = $pdo->prepare("
             SELECT 
@@ -61,10 +80,14 @@ try {
             WHERE i.member_id = ?
             GROUP BY i.invoice_id
             ORDER BY i.created_at DESC
+            LIMIT :limit OFFSET :offset
         ");
+        $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute([$currentMemberId]);
     }
     $invoices = $stmt->fetchAll();
+    $totalPages = ceil($totalInvoices / $itemsPerPage);
 } catch (Exception $e) {
     setMessage('Error loading invoices: ' . $e->getMessage(), 'error');
 }
@@ -150,6 +173,58 @@ try {
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    
+                    <!-- Pagination -->
+                    <?php if ($totalPages > 1): ?>
+                    <nav aria-label="Page navigation" class="mt-3">
+                        <ul class="pagination justify-content-center mb-3">
+                            <?php if ($page > 1): ?>
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page=<?php echo $page - 1; ?>">Previous</a>
+                            </li>
+                            <?php endif; ?>
+
+                            <?php 
+                            $startPage = max(1, $page - 2);
+                            $endPage = min($totalPages, $page + 2);
+                            
+                            if ($startPage > 1): ?>
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            <?php endif; ?>
+
+                            <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                                <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $i; ?>">
+                                        <?php echo $i; ?>
+                                    </a>
+                                </li>
+                            <?php endfor; ?>
+
+                            <?php if ($endPage < $totalPages): ?>
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            <?php endif; ?>
+
+                            <?php if ($page < $totalPages): ?>
+                            <li class="page-item">
+                                <a class="page-link" href="?page=<?php echo $page + 1; ?>">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page=<?php echo $totalPages; ?>">Last</a>
+                            </li>
+                            <?php endif; ?>
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mb-3">
+                        Showing <?php echo (($page - 1) * $itemsPerPage) + 1; ?> - <?php echo min($page * $itemsPerPage, $totalInvoices); ?> of <?php echo $totalInvoices; ?> invoices (Page <?php echo $page; ?> of <?php echo $totalPages; ?>)
+                    </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </main>
