@@ -222,20 +222,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </label>
                 </div>
 
+                <!-- Terms & Conditions Acceptance -->
+                <div class="card mb-3 border-warning">
+                    <div class="card-body p-3">
+                        <button type="button" class="btn btn-primary w-100" id="openTermsModal" data-bs-toggle="modal" data-bs-target="#termsModal">
+                            <i class="fas fa-file-contract"></i> View Terms & Accept to Login
+                        </button>
+                        <small class="text-muted d-block mt-2 text-center">
+                            <i class="fas fa-info-circle"></i> 
+                            Compliant with Republic Act No. 10173 (Data Privacy Act of 2012)
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Hidden checkbox (enabled only after modal acceptance) -->
+                <div id="agreeCheckboxContainer" class="d-none">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="agreeTerms" name="agreeTerms" required>
+                        <label class="form-check-label" for="agreeTerms">
+                            <i class="fas fa-check-circle text-success"></i> I have accepted the terms and conditions
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Error Message for Terms -->
+                <div id="termsError" class="alert alert-danger alert-dismissible fade show d-none" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Terms & Conditions Required:</strong> You must accept the Terms & Conditions to proceed.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
                 <button type="submit" class="btn btn-primary btn-login">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </button>
             </form>
 
-            <div class="login-footer">
-                <p>Demo Credentials:</p>
-                <p>Email: admin@levelupfitness.com</p>
-                <p>Password: password</p>
-            </div>
         </div>
     </div>
 
-    <!-- Resend Verification Email Modal -->
+    <!-- Terms & Conditions Modal -->
+    <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="termsModalLabel">
+                        <i class="fas fa-file-contract"></i> Terms & Conditions and Privacy Policy
+                    </h5>
+                </div>
+                <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                    <div class="alert alert-info">
+                        <strong><i class="fas fa-info-circle"></i> Important:</strong> Please read and understand the following terms before proceeding with login.
+                    </div>
+
+                    <!-- Quick Summary -->
+                    <section class="mb-4">
+                        <h6 class="text-primary"><i class="fas fa-list"></i> Key Points Summary</h6>
+                        <ul class="mb-0">
+                            <li><strong>Data Privacy:</strong> Your personal data is protected under Republic Act No. 10173 (Data Privacy Act of 2012)</li>
+                            <li><strong>Personal Information Collected:</strong> Name, email, contact number, membership details, payment info, fitness data</li>
+                            <li><strong>Data Protection:</strong> Encrypted, secured, and only used for gym management and services</li>
+                            <li><strong>Your Rights:</strong> Access, correct, delete, or obtain your data upon request</li>
+                            <li><strong>Health & Safety:</strong> Fitness activities carry inherent risks; use equipment responsibly</li>
+                            <li><strong>Payment Terms:</strong> Monthly/Quarterly/Annual memberships; 7-day cancellation notice required</li>
+                            <li><strong>Refund Policy:</strong> Pro-rata refunds minus ₱500 cancellation fee</li>
+                            <li><strong>No-Show Policy:</strong> 24-hour cancellation required; failure to cancel forfeits the session</li>
+                            <li><strong>Dispute Resolution:</strong> Good faith negotiation first, then escalation to management</li>
+                            <li><strong>Contact:</strong> <?php echo SUPPORT_EMAIL; ?> | NPC Hotline: (+63 2) 5322 1322</li>
+                        </ul>
+                    </section>
+
+                    <hr>
+
+                    <section class="mb-4">
+                        <h6 class="text-primary"><i class="fas fa-lock"></i> Privacy Policy Highlights</h6>
+                        <p class="text-muted small">
+                            We collect and process your personal data in compliance with the Data Privacy Act of 2012. 
+                            Your data is encrypted, stored securely, and retained only as long as necessary. You have the right to 
+                            access, rectify, erase, or port your data. 
+                            <a href="<?php echo APP_URL; ?>privacy-policy.php" target="_blank" class="text-primary">
+                                Read full Privacy Policy <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </p>
+                    </section>
+
+                    <section class="mb-4">
+                        <h6 class="text-primary"><i class="fas fa-dumbbell"></i> Membership & Health Disclaimer</h6>
+                        <p class="text-muted small">
+                            By using our facility, you acknowledge that fitness activities carry risks of injury. 
+                            We recommend obtaining medical clearance before starting any program. Level Up Fitness is not liable 
+                            for injuries sustained during exercise. Consult qualified healthcare professionals for medical advice.
+                            <a href="<?php echo APP_URL; ?>terms-conditions.php" target="_blank" class="text-primary">
+                                Read full Terms & Conditions <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </p>
+                    </section>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <strong>By clicking "I Accept" below, you confirm that you have read, understood, and agree to be bound by these terms.</strong>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="declineTermsBtn">
+                        <i class="fas fa-times"></i> Decline
+                    </button>
+                    <button type="button" class="btn btn-success" id="acceptTermsBtn">
+                        <i class="fas fa-check"></i> I Accept - Proceed to Login
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" id="resendVerificationModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -367,6 +464,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }, 60000); // Update every minute
             }
+            
+            // ==================== TERMS & CONDITIONS MODAL ====================
+            const $agreeCheckboxContainer = $('#agreeCheckboxContainer');
+            const $agreeTerms = $('#agreeTerms');
+            const $termsError = $('#termsError');
+            const $termsModal = $('#termsModal');
+            const $acceptTermsBtn = $('#acceptTermsBtn');
+            const $declineTermsBtn = $('#declineTermsBtn');
+            const $openTermsModal = $('#openTermsModal');
+            let termsAccepted = false;
+
+            // Show modal on login page load
+            const modal = new bootstrap.Modal($termsModal[0], {
+                backdrop: 'static',
+                keyboard: false
+            });
+            modal.show();
+
+            // Accept button - check checkbox and close modal
+            $acceptTermsBtn.on('click', function() {
+                termsAccepted = true;
+                $agreeTerms.prop('checked', true);
+                $agreeCheckboxContainer.removeClass('d-none');
+                $termsError.addClass('d-none');
+                modal.hide();
+            });
+
+            // Decline button - clear and show error
+            $declineTermsBtn.on('click', function() {
+                termsAccepted = false;
+                $agreeTerms.prop('checked', false);
+                $agreeCheckboxContainer.addClass('d-none');
+                $termsError.removeClass('d-none').show();
+                modal.hide();
+            });
+
+            // Reopen modal if user clicks the button again
+            $openTermsModal.on('click', function() {
+                modal.show();
+            });
+
+            // Prevent unchecking the box
+            $agreeTerms.on('change', function() {
+                if (!$(this).is(':checked')) {
+                    $(this).prop('checked', true);
+                }
+            });
+
+            // Form submission validation
+            $('form').on('submit', function(e) {
+                if (!$agreeTerms.is(':checked') || !termsAccepted) {
+                    e.preventDefault();
+                    $termsError.removeClass('d-none').show();
+                    $('html, body').animate({
+                        scrollTop: $termsError.offset().top - 100
+                    }, 300);
+                    modal.show();
+                    return false;
+                }
+            });
+
         });
     </script>
 </head>
